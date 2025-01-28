@@ -1,0 +1,91 @@
+// This is your Prisma schema file
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String?
+  email          String   @unique
+  hashedPassword String?
+  role           UserRole @default(USER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum TemplateType {
+  NEUTRAL
+  INDUSTRY
+  CUSTOM
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  active      Boolean  @default(true)
+  subdomain   String   @unique
+  jsonContent String   @db.Text
+  jsonBranding String  @db.Text
+  jsonBot     String   @db.Text
+  jsonMeta    String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FlowiseConfig {
+  id            String   @id @default(cuid())
+  url           String   @db.VarChar(255)
+  apiKey        String?  @db.VarChar(255)
+  responseRules Json     @default("[]")
+  defaultButtons Json    @default("[]")
+  
+  // Metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  templates     Template[]
+  
+  @@map("flowise_configs")
+}
+
+// Response Types for better type safety
+model ResponseType {
+  id          String   @id @default(cuid())
+  name        String   @unique @db.VarChar(255)
+  schema      Json     // JSON Schema for validation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("response_types")
+}
+
+// Asset Management
+model Asset {
+  id          String   @id @default(cuid())
+  type        String   @db.VarChar(50)  // image, video, document
+  url         String   @db.VarChar(255)
+  key         String   @db.VarChar(255)  // S3 key or similar
+  size        Int      // in bytes
+  mimeType    String   @db.VarChar(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([type])
+  @@map("assets")
+} 

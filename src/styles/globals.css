@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Logo-Größe im Header anpassen */
+.header-logo {
+  max-width: 120px;
+  height: auto;
+}
+
+/* Für mobile Geräte noch kleiner */
+@media (max-width: 640px) {
+  .header-logo {
+    max-width: 100px;
+  }
+}
+
+:root {
+  /* Colors will be set dynamically via JavaScript based on template branding */
+  --primary-color: '';
+  --primary-bg: '';
+}
+
+body {
+  background-color: var(--primary-bg);
+} 
