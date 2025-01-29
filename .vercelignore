@@ -1,0 +1,2 @@
+# Ignore everything in public except uploads
+!public/uploads/ 
