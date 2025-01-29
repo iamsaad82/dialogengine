@@ -68,10 +68,10 @@ export default function TemplateManager() {
         try {
           return {
             ...template,
-            jsonContent: typeof template.jsonContent === 'string' ? template.jsonContent : JSON.stringify(template.jsonContent),
-            jsonBranding: typeof template.jsonBranding === 'string' ? template.jsonBranding : JSON.stringify(template.jsonBranding),
-            jsonBot: typeof template.jsonBot === 'string' ? template.jsonBot : JSON.stringify(template.jsonBot),
-            jsonMeta: typeof template.jsonMeta === 'string' ? template.jsonMeta : JSON.stringify(template.jsonMeta)
+            jsonContent: typeof template.jsonContent === 'string' ? JSON.parse(template.jsonContent) : template.jsonContent,
+            jsonBranding: typeof template.jsonBranding === 'string' ? JSON.parse(template.jsonBranding) : template.jsonBranding,
+            jsonBot: typeof template.jsonBot === 'string' ? JSON.parse(template.jsonBot) : template.jsonBot,
+            jsonMeta: typeof template.jsonMeta === 'string' ? JSON.parse(template.jsonMeta) : template.jsonMeta
           }
         } catch (parseError) {
           console.error('Fehler beim Parsen des Templates:', parseError)
@@ -103,7 +103,7 @@ export default function TemplateManager() {
       }
 
       const response = await fetch('/api/templates', {
-        method: 'POST',
+        method: template.id ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -117,14 +117,23 @@ export default function TemplateManager() {
       const savedTemplate = await response.json()
       console.log('Gespeichertes Template:', savedTemplate)
       
-      // Aktualisiere die Templates-Liste
+      // Parse the saved template before updating state
+      const parsedTemplate = {
+        ...savedTemplate,
+        jsonContent: typeof savedTemplate.jsonContent === 'string' ? JSON.parse(savedTemplate.jsonContent) : savedTemplate.jsonContent,
+        jsonBranding: typeof savedTemplate.jsonBranding === 'string' ? JSON.parse(savedTemplate.jsonBranding) : savedTemplate.jsonBranding,
+        jsonBot: typeof savedTemplate.jsonBot === 'string' ? JSON.parse(savedTemplate.jsonBot) : savedTemplate.jsonBot,
+        jsonMeta: typeof savedTemplate.jsonMeta === 'string' ? JSON.parse(savedTemplate.jsonMeta) : savedTemplate.jsonMeta
+      }
+      
+      // Update templates list
       setTemplates(prevTemplates => {
         const newTemplates = [...prevTemplates]
         const index = newTemplates.findIndex(t => t.id === template.id)
         if (index !== -1) {
-          newTemplates[index] = parseTemplate(savedTemplate)
+          newTemplates[index] = parsedTemplate
         } else {
-          newTemplates.push(parseTemplate(savedTemplate))
+          newTemplates.push(parsedTemplate)
         }
         return newTemplates
       })

@@ -12,6 +12,10 @@ type ShowcaseSection = {
     title: string
     description: string
   }
+  cta: {
+    title: string
+    question: string
+  }
 }
 
 type ShowcaseEditorProps = {
@@ -25,11 +29,15 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
     altText?: string
     'context.title'?: string
     'context.description'?: string
+    'cta.title'?: string
+    'cta.question'?: string
   }>({})
 
   const [charCount, setCharCount] = useState({
     title: showcase.context.title.length,
-    description: showcase.context.description.length
+    description: showcase.context.description.length,
+    ctaTitle: showcase.cta?.title?.length || 0,
+    ctaQuestion: showcase.cta?.question?.length || 0
   })
 
   const handleChange = (field: string, value: string) => {
@@ -74,6 +82,32 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
           description: value
         }
       })
+    } else if (field === 'cta.title') {
+      setCharCount(prev => ({
+        ...prev,
+        ctaTitle: value.length
+      }))
+      error = !validateRequired(value) ? getErrorMessage('CTA Titel', 'required') : ''
+      onChange({
+        ...showcase,
+        cta: {
+          ...showcase.cta,
+          title: value
+        }
+      })
+    } else if (field === 'cta.question') {
+      setCharCount(prev => ({
+        ...prev,
+        ctaQuestion: value.length
+      }))
+      error = !validateRequired(value) ? getErrorMessage('CTA Frage', 'required') : ''
+      onChange({
+        ...showcase,
+        cta: {
+          ...showcase.cta,
+          question: value
+        }
+      })
     }
 
     setErrors(prev => ({
@@ -96,6 +130,12 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
     }
     if (!validateRequired(showcase.context.description)) {
       newErrors['context.description'] = getErrorMessage('Kontext Beschreibung', 'required')
+    }
+    if (!validateRequired(showcase.cta?.title)) {
+      newErrors['cta.title'] = getErrorMessage('CTA Titel', 'required')
+    }
+    if (!validateRequired(showcase.cta?.question)) {
+      newErrors['cta.question'] = getErrorMessage('CTA Frage', 'required')
     }
     setErrors(newErrors)
   }, [])
@@ -163,6 +203,49 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
           {errors['context.description'] && (
             <p className="text-sm text-red-500 mt-1">{errors['context.description']}</p>
           )}
+        </div>
+
+        {/* CTA Bereich */}
+        <div className="pt-4 border-t">
+          <h4 className="text-base font-medium mb-4">Call to Action</h4>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="ctaTitle" className="flex justify-between">
+                <span>CTA Titel</span>
+                <span className="text-muted-foreground text-sm">{charCount.ctaTitle}/200</span>
+              </Label>
+              <Input
+                id="ctaTitle"
+                value={showcase.cta?.title || ''}
+                onChange={(e) => handleChange('cta.title', e.target.value)}
+                maxLength={200}
+                className={errors['cta.title'] ? 'border-red-500' : ''}
+                placeholder="z.B. Oder fragen Sie einfach:"
+              />
+              {errors['cta.title'] && (
+                <p className="text-sm text-red-500 mt-1">{errors['cta.title']}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="ctaQuestion" className="flex justify-between">
+                <span>CTA Frage</span>
+                <span className="text-muted-foreground text-sm">{charCount.ctaQuestion}/500</span>
+              </Label>
+              <Input
+                id="ctaQuestion"
+                value={showcase.cta?.question || ''}
+                onChange={(e) => handleChange('cta.question', e.target.value)}
+                maxLength={500}
+                className={errors['cta.question'] ? 'border-red-500' : ''}
+                placeholder="z.B. Wie funktioniert Ihr Content Management?"
+              />
+              {errors['cta.question'] && (
+                <p className="text-sm text-red-500 mt-1">{errors['cta.question']}</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
