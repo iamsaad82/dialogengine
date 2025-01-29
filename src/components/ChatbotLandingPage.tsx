@@ -73,7 +73,7 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
   console.log('Rendering with branding:', branding);
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="min-h-screen bg-primary/5">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-200 fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         <div className="max-w-6xl mx-auto flex justify-center items-center h-16">
