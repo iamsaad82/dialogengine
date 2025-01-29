@@ -4,42 +4,8 @@ import { prisma } from '@/lib/prisma'
 // GET /api/templates
 export async function GET() {
   try {
-    const templates = await prisma.template.findMany({
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        active: true,
-        subdomain: true,
-        jsonContent: true,
-        jsonBranding: true,
-        jsonBot: true,
-        jsonMeta: true,
-        createdAt: true,
-        updatedAt: true,
-        flowiseConfigId: true
-      }
-    })
-    
-    // Safely parse JSON fields
-    const safeTemplates = templates.map(template => {
-      try {
-        return {
-          ...template,
-          jsonContent: template.jsonContent ? JSON.parse(template.jsonContent) : {},
-          jsonBranding: template.jsonBranding ? JSON.parse(template.jsonBranding) : {},
-          jsonBot: template.jsonBot ? JSON.parse(template.jsonBot) : {},
-          jsonMeta: template.jsonMeta ? JSON.parse(template.jsonMeta) : {}
-        }
-      } catch (e) {
-        console.error('Error parsing JSON for template:', template.id, e)
-        return template
-      }
-    })
-    
-    return new NextResponse(JSON.stringify(safeTemplates), {
-      headers: { 'Content-Type': 'application/json' }
-    })
+    const templates = await prisma.template.findMany()
+    return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
     return NextResponse.json({ error: "Fehler beim Laden der Templates" }, { status: 500 })
