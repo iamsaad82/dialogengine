@@ -1,21 +1,19 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client/edge'
+import { Pool } from '@neondatabase/serverless'
 
-const prismaClientSingleton = () => {
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.POSTGRES_PRISMA_URL
-      }
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL_NON_POOLING })
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  log: ['error'],
+  datasources: {
+    db: {
+      url: process.env.POSTGRES_PRISMA_URL
     }
-  })
-}
+  }
+})
 
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
-}
-
-const prisma = globalThis.prisma ?? prismaClientSingleton()
-
-if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma
-
-export { prisma } 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma 
