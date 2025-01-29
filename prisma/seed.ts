@@ -13,7 +13,7 @@ async function main() {
       type: "neutral",
       active: true,
       subdomain: "default",
-      jsonContent: {
+      jsonContent: JSON.stringify({
         hero: {
           title: "Content Management mit KI",
           subtitle: "Intelligent. Effizient. Zukunftssicher.",
@@ -52,13 +52,13 @@ async function main() {
             url: "#"
           }
         }
-      },
-      jsonBranding: {
+      }),
+      jsonBranding: JSON.stringify({
         logo: "/showcase-default.png",
         primaryColor: "#4F46E5",
         secondaryColor: "#7C3AED"
-      },
-      jsonBot: {
+      }),
+      jsonBot: JSON.stringify({
         type: "examples",
         examples: [
           {
@@ -75,11 +75,11 @@ async function main() {
           }
         ],
         flowiseId: ""
-      },
-      jsonMeta: {
+      }),
+      jsonMeta: JSON.stringify({
         title: "KI Content Management Demo",
         description: "Erleben Sie die Zukunft des Content Managements mit unserer KI-gestützten Lösung."
-      }
+      })
     }
   })
 

@@ -45,6 +45,10 @@ model Template {
   jsonMeta    String   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  flowiseConfig   FlowiseConfig? @relation(fields: [flowiseConfigId], references: [id])
+  flowiseConfigId String?
 }
 
 model FlowiseConfig {
