@@ -4,24 +4,24 @@ import { prisma } from '@/lib/prisma'
 // GET /api/templates
 export async function GET() {
   try {
-    const templates = await prisma.template.findMany()
+    const templates = await prisma.template.findMany({
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        active: true,
+        subdomain: true,
+        jsonContent: true,
+        jsonBranding: true,
+        jsonBot: true,
+        jsonMeta: true,
+        createdAt: true,
+        updatedAt: true,
+        flowiseConfigId: true
+      }
+    })
     
-    // Map the database fields to frontend fields
-    const mappedTemplates = templates.map((template: any) => ({
-      id: template.id,
-      name: template.name,
-      type: template.type,
-      active: template.active,
-      subdomain: template.subdomain,
-      jsonContent: template.jsonContent,
-      jsonBranding: template.jsonBranding,
-      jsonBot: template.jsonBot,
-      jsonMeta: template.jsonMeta,
-      createdAt: template.createdAt,
-      updatedAt: template.updatedAt
-    }))
-    
-    return NextResponse.json(mappedTemplates)
+    return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
     return NextResponse.json({ error: "Fehler beim Laden der Templates" }, { status: 500 })
