@@ -110,7 +110,7 @@ export class Crawler {
       url,
       title: content.split('\n')[0],
       content,
-      chunks,
+      chunks: chunks.filter((chunk): chunk is string => typeof chunk === 'string'),
       hash
     }
   }
@@ -140,12 +140,25 @@ export class Crawler {
         const links = this.extractLinks(html, url)
         queue.push(...links.filter(link => !this.visited.has(link)))
       } catch (error) {
-        if (error.message !== 'Page not modified') {
-          console.error(`Fehler bei ${url}:`, error)
+        if (error instanceof Error && error.message !== 'Page not modified') {
+          console.error(`Fehler bei ${url}:`, error.message)
         }
       }
     }
     
     return pages
+  }
+}
+
+export const cacheResponse = async (key: string, data: any) => {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    console.log('Redis nicht konfiguriert')
+    return
+  }
+  
+  try {
+    // ... rest of the code ...
+  } catch (error) {
+    console.error('Fehler beim Cachen:', error)
   }
 } 
