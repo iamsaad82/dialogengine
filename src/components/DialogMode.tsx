@@ -658,15 +658,6 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
         {/* Header - fixiert */}
         <div className="flex-none p-6 pt-8 pb-5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b z-20">
           <div className="max-w-4xl mx-auto space-y-6">
-            {messages.length === 0 && (
-              <DialogHeadline 
-                searchTerm={content?.dialog?.title || content?.hero?.title || "Wie kann ich Ihnen helfen?"}
-                description={content?.dialog?.description || content?.hero?.description}
-                exampleQuestion={bot?.examples?.[0]?.question || "Stellen Sie mir eine Frage"}
-                branding={branding}
-              />
-            )}
-
             {/* Mode Switcher */}
             <div className="flex justify-center">
               <div className="inline-flex flex-col items-center">
