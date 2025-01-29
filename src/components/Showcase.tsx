@@ -49,14 +49,14 @@ export function Showcase({ content, onDialogModeClick, primaryColor }: ShowcaseP
         {/* Call to Action Box */}
         <div className="bg-white border-t border-gray-100">
           <div 
-            className="px-8 py-6 relative"
+            className="px-4 sm:px-8 py-6 relative"
             style={{ 
               background: `linear-gradient(to right, ${primaryColor}15, ${primaryColor}10), linear-gradient(to bottom, white, rgba(255, 255, 255, 0.95))`
             }}
           >
-            <div className="flex items-center justify-between gap-12">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-12 sm:justify-between">
               {/* Text-Bereich */}
-              <div className="flex-1">
+              <div className="flex-1 text-center sm:text-left w-full">
                 <h3 className="text-lg font-medium mb-2" style={{ color: primaryColor }}>
                   {content.cta?.title || 'Oder fragen Sie einfach:'}
                 </h3>
@@ -68,7 +68,7 @@ export function Showcase({ content, onDialogModeClick, primaryColor }: ShowcaseP
               {/* Switcher */}
               <button
                 onClick={onDialogModeClick}
-                className="flex items-center gap-3 bg-white rounded-full shadow-sm hover:shadow-md p-2 cursor-pointer transition-all duration-300 border border-gray-100"
+                className="flex items-center gap-3 bg-white rounded-full shadow-sm hover:shadow-md p-2 cursor-pointer transition-all duration-300 border border-gray-100 mx-auto sm:mx-0"
               >
                 {/* Klassisch (aktiv) */}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
