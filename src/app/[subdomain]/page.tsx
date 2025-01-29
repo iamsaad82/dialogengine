@@ -3,10 +3,34 @@ import { Template } from '@/lib/types/template'
 import { templateTypeSchema } from '@/lib/schemas/template'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { Metadata } from 'next'
 
 interface Props {
   params: {
     subdomain: string
+  }
+}
+
+export async function generateMetadata({ params }: { params: { subdomain: string } }): Promise<Metadata> {
+  const template = await prisma.template.findFirst({
+    where: {
+      subdomain: params.subdomain,
+      active: true
+    }
+  })
+
+  if (!template) {
+    return {
+      title: 'Dialog Engine',
+      description: 'A powerful chatbot engine'
+    }
+  }
+
+  const meta = typeof template.jsonMeta === 'string' ? JSON.parse(template.jsonMeta) : template.jsonMeta
+
+  return {
+    title: meta.title || template.name,
+    description: meta.description || `${template.name} - Powered by Dialog Engine`
   }
 }
 
