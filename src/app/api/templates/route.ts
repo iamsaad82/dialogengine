@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'edge'
 
 export async function GET() {
   try {
-    const templates = await getTemplates()
+    const templates = await prisma.template.findMany()
     return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
@@ -16,7 +16,12 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const data = await req.json()
-    const template = await createTemplate(data)
+    const template = await prisma.template.create({
+      data: {
+        name: data.name,
+        description: data.description
+      }
+    })
     return NextResponse.json(template)
   } catch (error) {
     console.error('POST error:', error)
@@ -27,8 +32,13 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const data = await req.json()
-    const { id } = data
-    const template = await updateTemplate(id, data)
+    const template = await prisma.template.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        description: data.description
+      }
+    })
     return NextResponse.json(template)
   } catch (error) {
     console.error('PUT error:', error)
@@ -43,7 +53,9 @@ export async function DELETE(req: Request) {
     if (!id) {
       return NextResponse.json({ error: "ID ist erforderlich" }, { status: 400 })
     }
-    await deleteTemplate(id)
+    await prisma.template.delete({
+      where: { id }
+    })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE error:', error)
