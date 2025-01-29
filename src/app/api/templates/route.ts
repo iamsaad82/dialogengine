@@ -1,27 +1,23 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.POSTGRES_PRISMA_URL
-    }
-  }
-})
-
 // GET /api/templates
 export async function GET() {
+  const prisma = new PrismaClient()
   try {
     const templates = await prisma.template.findMany()
     return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
     return NextResponse.json({ error: "Fehler beim Laden der Templates" }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
 // POST /api/templates
 export async function POST(request: Request) {
+  const prisma = new PrismaClient()
   try {
     const body = await request.json()
     console.log('POST body:', body)
@@ -72,11 +68,14 @@ export async function POST(request: Request) {
       { error: "Fehler beim Erstellen des Templates" },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
 // PUT /api/templates/:id
 export async function PUT(request: Request) {
+  const prisma = new PrismaClient()
   try {
     const body = await request.json()
     console.log('PUT body:', body)
@@ -114,11 +113,14 @@ export async function PUT(request: Request) {
       { error: "Fehler beim Aktualisieren des Templates" },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
 // DELETE /api/templates/:id
 export async function DELETE(request: Request) {
+  const prisma = new PrismaClient()
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -138,5 +140,7 @@ export async function DELETE(request: Request) {
       { error: "Fehler beim Löschen des Templates" },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 } 
