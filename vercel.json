@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["fra1"],
   "env": {
-    "NEXTAUTH_URL": "https://ihre-domain.vercel.app",
-    "VERCEL_ENV": "production"
+    "NEXTAUTH_URL": "https://${VERCEL_URL}",
+    "NEXTAUTH_SECRET": "${NEXTAUTH_SECRET}",
+    "DATABASE_URL": "${DATABASE_URL}",
+    "UPSTASH_REDIS_REST_URL": "${UPSTASH_REDIS_REST_URL}",
+    "UPSTASH_REDIS_REST_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}"
   }
 } 
