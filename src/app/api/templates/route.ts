@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { Pool } from '@neondatabase/serverless'
+
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL_NON_POOLING })
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.POSTGRES_PRISMA_URL
+    }
+  }
+})
 
 // GET /api/templates
 export async function GET() {
-  const prisma = new PrismaClient()
   try {
     const templates = await prisma.template.findMany()
     return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
     return NextResponse.json({ error: "Fehler beim Laden der Templates" }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
