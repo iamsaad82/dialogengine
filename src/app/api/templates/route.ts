@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export const runtime = 'edge'
-
 export async function GET() {
   try {
     const templates = await prisma.template.findMany()
@@ -19,7 +17,12 @@ export async function POST(req: Request) {
     const template = await prisma.template.create({
       data: {
         name: data.name,
-        description: data.description
+        type: data.type,
+        subdomain: data.subdomain,
+        jsonContent: data.jsonContent,
+        jsonBranding: data.jsonBranding,
+        jsonBot: data.jsonBot,
+        jsonMeta: data.jsonMeta
       }
     })
     return NextResponse.json(template)
@@ -36,7 +39,12 @@ export async function PUT(req: Request) {
       where: { id: data.id },
       data: {
         name: data.name,
-        description: data.description
+        type: data.type,
+        subdomain: data.subdomain,
+        jsonContent: data.jsonContent,
+        jsonBranding: data.jsonBranding,
+        jsonBot: data.jsonBot,
+        jsonMeta: data.jsonMeta
       }
     })
     return NextResponse.json(template)
