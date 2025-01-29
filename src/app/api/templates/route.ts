@@ -21,7 +21,25 @@ export async function GET() {
       }
     })
     
-    return NextResponse.json(templates)
+    // Safely parse JSON fields
+    const safeTemplates = templates.map(template => {
+      try {
+        return {
+          ...template,
+          jsonContent: template.jsonContent ? JSON.parse(template.jsonContent) : {},
+          jsonBranding: template.jsonBranding ? JSON.parse(template.jsonBranding) : {},
+          jsonBot: template.jsonBot ? JSON.parse(template.jsonBot) : {},
+          jsonMeta: template.jsonMeta ? JSON.parse(template.jsonMeta) : {}
+        }
+      } catch (e) {
+        console.error('Error parsing JSON for template:', template.id, e)
+        return template
+      }
+    })
+    
+    return new NextResponse(JSON.stringify(safeTemplates), {
+      headers: { 'Content-Type': 'application/json' }
+    })
   } catch (error) {
     console.error('GET error:', error)
     return NextResponse.json({ error: "Fehler beim Laden der Templates" }, { status: 500 })
