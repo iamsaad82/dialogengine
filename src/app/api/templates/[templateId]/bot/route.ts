@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ParsedBot } from '@/lib/schemas/template'
+import { ParsedBot } from '@/lib/types/template'
+
+export const runtime = 'nodejs'
 
 export async function PUT(
   request: Request,
@@ -9,6 +11,13 @@ export async function PUT(
   try {
     const bot: ParsedBot = await request.json()
     const templateId = params.templateId
+
+    if (!templateId) {
+      return NextResponse.json(
+        { error: 'Template ID ist erforderlich' },
+        { status: 400 }
+      )
+    }
 
     const updatedTemplate = await prisma.template.update({
       where: {
@@ -28,10 +37,10 @@ export async function PUT(
       headers,
       status: 200
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating bot:', error)
     return NextResponse.json(
-      { error: 'Failed to update bot configuration' },
+      { error: error.message || 'Fehler beim Aktualisieren der Bot-Konfiguration' },
       { status: 500 }
     )
   }

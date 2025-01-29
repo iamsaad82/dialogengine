@@ -27,8 +27,20 @@ export function BrandingEditor({ branding, onChange }: BrandingEditorProps) {
       error = !validateUrl(value) ? getErrorMessage('Logo URL', 'url') : ''
     } else if (field === 'primaryColor' || field === 'secondaryColor') {
       error = !validateRequired(value) ? getErrorMessage(field === 'primaryColor' ? 'Primärfarbe' : 'Sekundärfarbe', 'required') : ''
-      if (!error && !/^#[0-9A-F]{6}$/i.test(value)) {
-        error = 'Bitte geben Sie eine gültige Hex-Farbe ein (z.B. #FF0000)'
+      if (!error) {
+        // Unterstützt sowohl 3- als auch 6-stellige Hex-Codes
+        const isValidHex = /^#([0-9A-F]{3}){1,2}$/i.test(value)
+        if (!isValidHex) {
+          error = 'Bitte geben Sie eine gültige Hex-Farbe ein (z.B. #F00 oder #FF0000)'
+        } else if (value.length === 4) {
+          // Konvertiere 3-stelligen zu 6-stelligen Hex-Code
+          const expandedHex = '#' + value.slice(1).split('').map(char => char + char).join('')
+          onChange({
+            ...branding,
+            [field]: expandedHex
+          })
+          return
+        }
       }
     }
 
@@ -49,10 +61,10 @@ export function BrandingEditor({ branding, onChange }: BrandingEditorProps) {
     if (!validateUrl(branding.logo)) {
       newErrors.logo = getErrorMessage('Logo URL', 'url')
     }
-    if (!validateRequired(branding.primaryColor) || !/^#[0-9A-F]{6}$/i.test(branding.primaryColor)) {
+    if (!validateRequired(branding.primaryColor) || !/^#([0-9A-F]{3}){1,2}$/i.test(branding.primaryColor)) {
       newErrors.primaryColor = getErrorMessage('Primärfarbe', 'required')
     }
-    if (!validateRequired(branding.secondaryColor) || !/^#[0-9A-F]{6}$/i.test(branding.secondaryColor)) {
+    if (!validateRequired(branding.secondaryColor) || !/^#([0-9A-F]{3}){1,2}$/i.test(branding.secondaryColor)) {
       newErrors.secondaryColor = getErrorMessage('Sekundärfarbe', 'required')
     }
     setErrors(newErrors)

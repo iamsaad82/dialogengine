@@ -1,9 +1,7 @@
+import { redirect } from 'next/navigation'
+
 export default function Home() {
-  return (
-    <main>
-      <h1>Willkommen</h1>
-      <a href="/admin">Zum Admin-Bereich</a>
-    </main>
-  )
+  redirect('/default')
+  return null
 }
 

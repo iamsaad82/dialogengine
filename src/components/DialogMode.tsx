@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, ReactElement } from 'react'
 import { Button } from "@/components/ui/button"
-import { Bot, Send, User, ArrowRight, ArrowLeft, ExternalLink, Download, MessageCircle } from "lucide-react"
+import { Bot, Send, User, ArrowRight, ArrowLeft, ExternalLink, Download, MessageCircle, MessageSquareIcon } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { getResponseConfig } from '@/config/responseConfig'
 import TypingIndicator from './TypingIndicator'
@@ -10,6 +10,9 @@ import { DialogHeadline } from './DialogHeadline'
 import { Template, Example, ParsedBot, ParsedContent, ParsedBranding } from '@/lib/types/template'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { cn } from '@/lib/utils'
+import Image from 'next/image'
+import { CalendarIcon, MapPinIcon, FileIcon } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -45,11 +48,6 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
 
         console.log('DialogMode - Parsed Bot Data:', parsedBot);
         console.log('DialogMode - Bot Examples:', parsedBot?.examples);
-
-        // Set background color when branding is parsed
-        if (parsedBranding?.primaryColor) {
-          document.documentElement.style.setProperty('--background', `${parsedBranding.primaryColor}1A`);
-        }
 
         setContent(parsedContent);
         setBot(parsedBot);
@@ -116,18 +114,15 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
 
       try {
         if (bot?.type === 'examples') {
-          // Demo-Modus mit künstlicher Verzögerung
-          const demoAnswer = findDemoAnswer(userMessage);
-          
-          // Künstliche Denkzeit für Demo-Modus
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          setIsTyping(false);
-          
-          if (demoAnswer) {
+          const example = findDemoAnswer(userMessage)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          setIsTyping(false)
+
+          if (example) {
             setMessages(prev => [...prev, {
               role: 'assistant',
-              content: processResponse(demoAnswer.answer, demoAnswer.type, demoAnswer.metadata)
-            }]);
+              content: processResponse(example.answer, example.type, example.metadata)
+            }])
           } else {
             // Zeige verfügbare Beispielfragen an
             const availableExamples = bot.examples
@@ -137,14 +132,14 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
 
             setMessages(prev => [...prev, {
               role: 'assistant',
-              content: processResponse(`Entschuldigung, für diese spezifische Frage habe ich leider keine passende Antwort in meiner Demo-Version. 
+              content: processResponse(`Entschuldigung, für diese spezifische Frage habe ich leider keine passende Antwort. 
 
-Dies ist eine eingeschränkte Demonstration mit ausgewählten Beispielen. Sie können zum Beispiel folgende Fragen stellen:
+Ich kann Ihnen aber bei folgenden Themen weiterhelfen:
 
 ${availableExamples}
 
-Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durchsuchen.`)
-            }]);
+Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu durchsuchen.`, 'info')
+            }])
           }
         } else if (bot?.type === 'smart-search') {
           setIsTyping(false);
@@ -154,11 +149,7 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
           }]);
           return;
         } else if (bot?.type === 'flowise' && bot.flowiseId) {
-          // Flowise-Modus mit künstlicher Verzögerung
           try {
-            // Initiale Denkzeit
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
             const response = await fetch('/api/chat', {
               method: 'POST',
               headers: {
@@ -188,7 +179,7 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
             if (data.text || data.answer) {
               setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: processResponse(data.text || data.answer, data.type, data.metadata)
+                content: processResponse(data.text || data.answer, data.type || 'info', data.metadata || {})
               }]);
             } else {
               setMessages(prev => [...prev, {
@@ -201,7 +192,9 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
             setIsTyping(false);
             setMessages(prev => [...prev, {
               role: 'assistant',
-              content: processResponse('Es tut mir leid, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später noch einmal.')
+              content: processResponse('Es tut mir leid, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später noch einmal.', 'error', {
+                color: branding?.primaryColor || 'var(--primary)'
+              })
             }]);
           }
         } else if (bot?.type === 'flowise' && !bot.flowiseId) {
@@ -209,14 +202,18 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
           setIsTyping(false);
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: processResponse('Der Flowise-Bot wurde noch nicht vollständig konfiguriert. Bitte fügen Sie eine Flowise-ID in den Bot-Einstellungen hinzu.')
+            content: processResponse('Der Flowise-Bot wurde noch nicht vollständig konfiguriert. Bitte fügen Sie eine Flowise-ID in den Bot-Einstellungen hinzu.', 'error', {
+              color: branding?.primaryColor || 'var(--primary)'
+            })
           }]);
         } else {
           await new Promise(resolve => setTimeout(resolve, 1000));
           setIsTyping(false);
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: processResponse('Der Bot-Typ wird nicht unterstützt. Bitte wählen Sie entweder "examples", "smart-search" oder "flowise" als Bot-Typ.')
+            content: processResponse('Der Bot-Typ wird nicht unterstützt. Bitte wählen Sie entweder "examples", "smart-search" oder "flowise" als Bot-Typ.', 'error', {
+              color: branding?.primaryColor || 'var(--primary)'
+            })
           }]);
         }
       } catch (error) {
@@ -224,460 +221,574 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
         setIsTyping(false);
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: processResponse('Es tut mir leid, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später noch einmal.')
+          content: processResponse('Es tut mir leid, es ist ein Fehler aufgetreten. Bitte versuchen Sie es später noch einmal.', 'error', {
+            color: branding?.primaryColor || 'var(--primary)'
+          })
         }]);
       }
     }
 
     // Formatiert die Antwort entsprechend unserem Design
     const processResponse = (response: string, type?: string, metadata?: any): ReactElement => {
-      const formatText = (text: string) => {
-        if (!text) return null;
-        
-        const items = text.split(/(?:\r?\n|\r)/).filter(item => item.trim())
-        if (items.length === 0) return null;
-        
-        const hasEmoji = items[0]?.includes('😊') || items[0]?.includes('🎯') || items[0]?.includes('😕')
-        const intro = items[0]
-        const rest = items.slice(1)
-        
-        // Prüfen, ob der Rest des Textes eine Liste ist
-        const isList = rest.some(item => item.startsWith('-') || item.startsWith('•'))
-
-        // Formatierung für fetten Text
-        const formatBoldText = (text: string) => {
-          return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        }
-
+      const formatText = (text: string, isError?: boolean) => {
         return (
-          <>
-            {intro && (
-              <p 
-                className="text-[17px] leading-[1.5] tracking-[-0.01em]" 
-                dangerouslySetInnerHTML={{ __html: formatBoldText(intro) }} 
-              />
-            )}
-            {isList ? (
-              <div className="space-y-3 mt-4">
-                {rest.map((item, index) => {
-                  const cleanItem = item.replace(/^[•\-\*]\s*/, '').trim()
-                  if (!cleanItem) return null
-
-                  return (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-1.5 h-1.5 mt-2.5 rounded-full" style={{ backgroundColor: branding?.primaryColor }} />
-                      <p 
-                        className="flex-1 text-[17px] leading-[1.5] tracking-[-0.01em]" 
-                        dangerouslySetInnerHTML={{ __html: formatBoldText(cleanItem) }} 
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="space-y-3 mt-4">
-                {rest.map((item, index) => (
-                  <p 
-                    key={index} 
-                    className="text-[17px] leading-[1.5] tracking-[-0.01em]"
-                    dangerouslySetInnerHTML={{ __html: formatBoldText(item) }} 
-                  />
-                ))}
-              </div>
-            )}
-          </>
+          <div className={cn(
+            "text-[15px] leading-relaxed",
+            isError && "text-red-600"
+          )}
+          style={isError ? { color: metadata?.color } : undefined}>
+            {text.split('\n').map((line, i) => (
+              <p key={i} className="mb-2 last:mb-0">{line}</p>
+            ))}
+          </div>
         )
       }
 
-      // Template-spezifisches Rendering
       switch (type) {
-        case 'event':
-          return (
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                {metadata?.image && (
-                  <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden">
-                    <img src={metadata.image} alt="Event" className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="space-y-3">
-                    {metadata?.title && (
-                      <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                        {metadata.title}
-                      </h3>
-                    )}
-                    {formatText(response)}
-                    {metadata?.date && (
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                          <line x1="16" y1="2" x2="16" y2="6"/>
-                          <line x1="8" y1="2" x2="8" y2="6"/>
-                          <line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                        {format(new Date(metadata.date), 'PPpp', { locale: de })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {metadata?.buttonText && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                  >
-                    {metadata.buttonText}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
+        case 'error':
+          return formatText(response, true)
 
-        case 'product':
-          return (
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                {metadata?.image && (
-                  <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden">
-                    <img src={metadata.image} alt="Produkt" className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="space-y-3">
-                    {metadata?.title && (
-                      <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                        {metadata.title}
-                      </h3>
-                    )}
-                    {formatText(response)}
-                    {metadata?.price && (
-                      <p className="text-lg font-semibold" style={{ color: branding?.primaryColor }}>
-                        {metadata.price}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {metadata?.buttonText && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                  >
-                    {metadata.buttonText}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
-
-        case 'service':
-          return (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                {metadata?.icon && (
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${branding?.primaryColor}15` }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                      {metadata.icon}
-                    </svg>
-                  </div>
-                )}
-                {metadata?.title && (
-                  <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                    {metadata.title}
-                  </h3>
-                )}
-                {formatText(response)}
-              </div>
-              {metadata?.buttonText && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                  >
-                    {metadata.buttonText}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
-
-        case 'location':
-          return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
-              )}
-              {formatText(response)}
-              {metadata?.address && (
-                <div className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    <p className="text-sm text-gray-600 flex-1">{metadata.address}</p>
-                  </div>
-                </div>
-              )}
-              {metadata?.buttonText && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    {metadata.buttonText}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
-
-        case 'video':
-          return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
-              )}
-              {formatText(response)}
-              {metadata?.videoUrl && (
-                <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
-                  <iframe
-                    src={metadata.videoUrl}
-                    className="w-full h-full"
-                    allowFullScreen
-                  />
-                </div>
-              )}
-              {metadata?.buttonText && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                    {metadata.buttonText}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
+        case 'info':
+          return formatText(response)
 
         case 'link':
           return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
-              )}
+            <div className="space-y-3">
               {formatText(response)}
               {metadata?.url && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                    asChild
-                  >
-                    <a href={metadata.url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {metadata.buttonText || 'Mehr erfahren'}
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )
-
-        case 'download':
-          return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
-              )}
-              {formatText(response)}
-              {metadata?.url && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                    asChild
-                  >
-                    <a href={metadata.url} download>
-                      <Download className="w-4 h-4 mr-2" />
-                      {metadata.buttonText || 'Download'}
-                    </a>
-                  </Button>
-                </div>
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Mehr erfahren'}
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
               )}
             </div>
           )
 
         case 'contact':
           return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
+            <div className="space-y-3">
+              {formatText(response)}
+              {(metadata?.buttonText || metadata?.url) && (
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    <div className="flex items-center">
+                      <User className="mr-2 h-3.5 w-3.5" />
+                      {metadata.buttonText || 'Kontakt aufnehmen'}
+                    </div>
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )
+
+        case 'service':
+          return (
+            <div className="space-y-3">
+              {formatText(response)}
+              {metadata?.url && (
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Zum Service'}
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )
+
+        case 'product':
+          return (
+            <div className="space-y-3">
+              {metadata?.image && (
+                <div className="relative h-40 -mx-4 first:mt-0">
+                  <Image 
+                    src={metadata.image} 
+                    alt="Produkt Bild"
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                </div>
               )}
               {formatText(response)}
               {metadata?.url && (
-                <div className="flex justify-end">
-                  <Button 
-                    className="text-white transition-all hover:opacity-90 px-6"
-                    style={{
-                      background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                    }}
-                    asChild
-                  >
-                    <a href={metadata.url}>
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {metadata.buttonText || 'Kontakt aufnehmen'}
-                    </a>
-                  </Button>
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Mehr erfahren'}
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )
+
+        case 'event':
+          return (
+            <div className="space-y-3">
+              {formatText(response)}
+              <div className="space-y-1.5">
+                {metadata?.date && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                    {format(new Date(metadata.date), 'PPP', { locale: de })}
+                  </div>
+                )}
+                {metadata?.address && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <MapPinIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                    {metadata.address}
+                  </div>
+                )}
+              </div>
+              {metadata?.url && (
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Anmelden'}
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )
+
+        case 'video':
+          return (
+            <div className="space-y-3">
+              {metadata?.image && (
+                <div className="relative h-40 -mx-4 first:mt-0">
+                  <Image 
+                    src={metadata.image} 
+                    alt="Video Vorschau"
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                      <div className="w-0 h-0 border-t-5 border-t-transparent border-l-8 border-b-5 border-b-transparent ml-1"
+                        style={{ borderLeftColor: branding?.primaryColor || 'var(--primary)' }} />
+                    </div>
+                  </div>
                 </div>
+              )}
+              {formatText(response)}
+              {metadata?.videoUrl && (
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.videoUrl} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Video ansehen'}
+                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )
+
+        case 'download':
+          return (
+            <div className="space-y-3">
+              {formatText(response)}
+              <div className="flex items-center text-xs text-muted-foreground">
+                <FileIcon className="mr-2 h-3.5 w-3.5" />
+                <div>
+                  {metadata?.fileType && <span>{metadata.fileType}</span>}
+                  {metadata?.fileSize && <span className="ml-2">({metadata.fileSize} MB)</span>}
+                </div>
+              </div>
+              {metadata?.url && (
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                  asChild
+                >
+                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                    {metadata.buttonText || 'Herunterladen'}
+                    <Download className="ml-2 h-3.5 w-3.5" />
+                  </a>
+                </Button>
               )}
             </div>
           )
 
         case 'faq':
-        case 'info':
-        default:
           return (
-            <div className="space-y-6">
-              {metadata?.title && (
-                <h3 className="font-semibold text-lg" style={{ color: branding?.primaryColor }}>
-                  {metadata.title}
-                </h3>
-              )}
+            <div className="space-y-3">
               {formatText(response)}
+              {metadata?.relatedQuestions && typeof metadata.relatedQuestions === 'string' && metadata.relatedQuestions.length > 1 && (
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Verwandte Fragen:
+                  </p>
+                  <div className="space-y-1">
+                    {metadata.relatedQuestions.split('\n')
+                      .filter((q: string) => q.trim().length > 0)
+                      .map((question: string, index: number) => (
+                        <Button 
+                          key={index}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-left h-auto py-1.5 px-2.5 text-xs hover:bg-primary/5"
+                          onClick={() => setInput(question)}
+                        >
+                          <MessageCircle 
+                            className="mr-2 h-3.5 w-3.5 shrink-0" 
+                            style={{ color: branding?.primaryColor || 'var(--primary)' }}
+                          />
+                          <span className="line-clamp-2">{question}</span>
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )
+
+        default:
+          return formatText(response)
       }
+    }
+
+    const MessageBubble = ({ message, branding }: { message: Message, branding: ParsedBranding | null }) => {
+      const isUser = message.role === 'user'
+      
+      return (
+        <div className={cn(
+          "flex items-start gap-3 max-w-3xl mx-auto",
+          isUser ? "justify-end" : "justify-start"
+        )}>
+          {!isUser && (
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
+              style={{ backgroundColor: branding?.primaryColor || 'var(--primary)' }}>
+              <Bot className="w-5 h-5" />
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <div className={cn(
+              "px-6 py-4 rounded-2xl text-[15px] leading-relaxed",
+              isUser ? "text-white rounded-br-sm max-w-[420px]" : "bg-white shadow-sm rounded-bl-sm max-w-[480px]"
+            )}
+            style={isUser ? {
+              backgroundColor: branding?.primaryColor || 'var(--primary)'
+            } : undefined}>
+              {message.content}
+            </div>
+          </div>
+          {isUser && (
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
+              style={{ backgroundColor: branding?.primaryColor || 'var(--primary)' }}>
+              <User className="w-5 h-5" />
+            </div>
+          )}
+        </div>
+      )
     }
 
     if (messages.length === 0) {
       return (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-3xl mx-auto space-y-8"
-        >
-          <DialogHeadline 
-            searchTerm={content?.dialog?.title || content?.hero?.title || "Wie kann ich Ihnen helfen?"}
-            description={content?.dialog?.description || content?.hero?.description}
-            exampleQuestion={bot?.examples?.[0]?.question || "Stellen Sie mir eine Frage"}
-          />
+        <div ref={ref} className="fixed inset-0 flex flex-col bg-background pt-16">
+          {/* Header - fixiert */}
+          <div className="flex-none p-6 pt-8 pb-5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b z-20">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <DialogHeadline 
+                searchTerm={content?.dialog?.title || content?.hero?.title || "Wie kann ich Ihnen helfen?"}
+                description={content?.dialog?.description || content?.hero?.description}
+                exampleQuestion={bot?.examples?.[0]?.question || "Stellen Sie mir eine Frage"}
+                branding={branding}
+              />
 
-          {/* Mode Switcher */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <div className="inline-flex flex-col items-center max-w-full">
-              <div 
-                onClick={() => onModeChange?.(!isDialogMode)}
-                className="flex items-center gap-3 bg-white rounded-full shadow-lg p-2 cursor-pointer hover:shadow-xl transition-all duration-300 w-auto"
-              >
-                {/* Left side - Classic Mode */}
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
-                  !isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
-                }`} 
-                style={{ 
-                  backgroundColor: !isDialogMode ? `${branding?.primaryColor}15` : 'transparent',
-                  borderColor: !isDialogMode ? branding?.primaryColor : 'transparent'
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="3" y1="9" x2="21" y2="9"/>
-                    <line x1="9" y1="21" x2="9" y2="9"/>
-                  </svg>
-                  <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: !isDialogMode ? branding?.primaryColor : '#666666' }}>
-                    Klassisch
-                  </span>
-                </div>
-
-                {/* Switch */}
-                <div className="relative w-12 h-6 bg-gray-200 rounded-full cursor-pointer shrink-0">
+              {/* Mode Switcher */}
+              <div className="flex justify-center">
+                <div className="inline-flex flex-col items-center">
                   <div 
-                    className="absolute w-5 h-5 rounded-full transition-all duration-300 shadow-md"
-                    style={{ 
-                      backgroundColor: branding?.primaryColor,
-                      left: isDialogMode ? '26px' : '2px',
-                      top: '2px'
-                    }}
-                  />
-                </div>
+                    onClick={() => onModeChange?.(!isDialogMode)}
+                    className="flex items-center gap-3 bg-white rounded-full shadow-lg p-2 cursor-pointer hover:shadow-xl transition-all duration-300 w-auto"
+                  >
+                    {/* Left side - Classic Mode */}
+                    <div className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300",
+                      !isDialogMode ? "border" : "opacity-75"
+                    )}
+                    style={!isDialogMode ? {
+                      backgroundColor: `${branding?.primaryColor || 'var(--primary)'}15`,
+                      borderColor: branding?.primaryColor || 'var(--primary)',
+                      color: branding?.primaryColor || 'var(--primary)'
+                    } : undefined}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="3" y1="9" x2="21" y2="9"/>
+                        <line x1="9" y1="21" x2="9" y2="9"/>
+                      </svg>
+                      <span className="font-medium text-sm sm:text-base whitespace-nowrap">
+                        Klassisch
+                      </span>
+                    </div>
 
-                {/* Right side - Dialog Mode */}
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
-                  isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
-                }`} 
-                style={{ 
-                  backgroundColor: isDialogMode ? `${branding?.primaryColor}15` : 'transparent',
-                  borderColor: isDialogMode ? branding?.primaryColor : 'transparent'
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: isDialogMode ? branding?.primaryColor : '#666666' }}>
-                    Dialog
-                  </span>
+                    {/* Switch */}
+                    <div className="relative w-12 h-6 bg-muted rounded-full cursor-pointer shrink-0">
+                      <div className="absolute w-5 h-5 rounded-full shadow-md transition-all duration-300"
+                        style={{ 
+                          backgroundColor: branding?.primaryColor || 'var(--primary)',
+                          left: isDialogMode ? '26px' : '2px',
+                          top: '2px'
+                        }} />
+                    </div>
+
+                    {/* Right side - Dialog Mode */}
+                    <div className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300",
+                      isDialogMode ? "border" : "opacity-75"
+                    )}
+                    style={isDialogMode ? {
+                      backgroundColor: `${branding?.primaryColor || 'var(--primary)'}15`,
+                      borderColor: branding?.primaryColor || 'var(--primary)',
+                      color: branding?.primaryColor || 'var(--primary)'
+                    } : undefined}>
+                      <MessageSquareIcon className="w-4 h-4" />
+                      <span className="font-medium text-sm sm:text-base whitespace-nowrap">
+                        Dialog
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
+                    Tippen zum Wechseln
+                  </p>
                 </div>
               </div>
-
-              {/* Helper Text */}
-              <p className="mt-2 text-xs sm:text-sm text-gray-600">
-                Tippen zum Wechseln
-              </p>
             </div>
-          </motion.div>
-          
-          <motion.form 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            onSubmit={handleSubmit} 
-            className="relative group"
-          >
-            <div className={`absolute inset-0 bg-gradient-to-r from-[#005e3f]/10 to-[#004730]/10 rounded-3xl blur-xl transition-opacity duration-500 ${isFocused ? 'opacity-100' : 'opacity-0'}`} />
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#005e3f]/5 to-[#004730]/5 rounded-3xl" />
+          </div>
+
+          {/* Zentriertes initiales Eingabefeld */}
+          <div className="flex-1 flex items-start justify-center px-4 pt-16">
+            <motion.form 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              onSubmit={handleSubmit} 
+              className="relative w-full max-w-4xl"
+            >
+              <div className={cn(
+                "absolute inset-0 rounded-3xl blur-lg transition-all duration-500",
+                isFocused ? "opacity-70 scale-105" : "opacity-0 scale-100"
+              )} style={{ 
+                background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}20, ${branding?.secondaryColor || branding?.primaryColor || '#004730'}20)` 
+              }} />
+              
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r rounded-3xl" 
+                  style={{ 
+                    backgroundImage: `linear-gradient(to right, ${branding?.primaryColor || 'var(--primary)'}0A, ${branding?.secondaryColor || branding?.primaryColor || 'var(--primary)'}0A)`
+                  }} 
+                />
+                <div className={`absolute h-8 w-[2px] top-1/2 -mt-4 transition-all duration-200 left-8 ${
+                  input ? 'opacity-0' : 'opacity-100'
+                } ${
+                  isFocused ? 'animate-pulse' : ''
+                }`} 
+                  style={{ 
+                    backgroundColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#cbd5e1'
+                  }} 
+                />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder="Was möchten Sie wissen?"
+                  className="w-full pl-8 pr-24 py-9 text-lg text-slate-700 bg-white backdrop-blur-sm border-2 rounded-3xl shadow-lg transition-all duration-300 outline-none placeholder:text-slate-400"
+                  style={{ 
+                    caretColor: branding?.primaryColor || 'var(--primary)',
+                    borderColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#e2e8f0'
+                  }}
+                  disabled={isTyping}
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl h-14 px-6"
+                  style={{ 
+                    background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}, ${branding?.secondaryColor || branding?.primaryColor || '#004730'})` 
+                  }}
+                  disabled={!input.trim() || isTyping}
+                >
+                  <Send className="h-5 w-5 sm:mr-2.5" />
+                  <span className="hidden sm:inline text-base">Fragen</span>
+                </Button>
+              </div>
+            </motion.form>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div ref={ref} className="fixed inset-0 flex flex-col bg-background pt-16">
+        {/* Header - fixiert */}
+        <div className="flex-none p-6 pt-8 pb-5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b z-20">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <DialogHeadline 
+              searchTerm={content?.dialog?.title || content?.hero?.title || "Wie kann ich Ihnen helfen?"}
+              description={content?.dialog?.description || content?.hero?.description}
+              exampleQuestion={bot?.examples?.[0]?.question || "Stellen Sie mir eine Frage"}
+              branding={branding}
+            />
+
+            {/* Mode Switcher */}
+            <div className="flex justify-center">
+              <div className="inline-flex flex-col items-center">
+                <div 
+                  onClick={() => onModeChange?.(!isDialogMode)}
+                  className="flex items-center gap-3 bg-white rounded-full shadow-lg p-2 cursor-pointer hover:shadow-xl transition-all duration-300 w-auto"
+                >
+                  {/* Left side - Classic Mode */}
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300",
+                    !isDialogMode ? "border" : "opacity-75"
+                  )}
+                  style={!isDialogMode ? {
+                    backgroundColor: `${branding?.primaryColor || 'var(--primary)'}15`,
+                    borderColor: branding?.primaryColor || 'var(--primary)',
+                    color: branding?.primaryColor || 'var(--primary)'
+                  } : undefined}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="3" y1="9" x2="21" y2="9"/>
+                      <line x1="9" y1="21" x2="9" y2="9"/>
+                    </svg>
+                    <span className="font-medium text-sm sm:text-base whitespace-nowrap">
+                      Klassisch
+                    </span>
+                  </div>
+
+                  {/* Switch */}
+                  <div className="relative w-12 h-6 bg-muted rounded-full cursor-pointer shrink-0">
+                    <div className="absolute w-5 h-5 rounded-full shadow-md transition-all duration-300"
+                      style={{ 
+                        backgroundColor: branding?.primaryColor || 'var(--primary)',
+                        left: isDialogMode ? '26px' : '2px',
+                        top: '2px'
+                      }} />
+                  </div>
+
+                  {/* Right side - Dialog Mode */}
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300",
+                    isDialogMode ? "border" : "opacity-75"
+                  )}
+                  style={isDialogMode ? {
+                    backgroundColor: `${branding?.primaryColor || 'var(--primary)'}15`,
+                    borderColor: branding?.primaryColor || 'var(--primary)',
+                    color: branding?.primaryColor || 'var(--primary)'
+                  } : undefined}>
+                    <MessageSquareIcon className="w-4 h-4" />
+                    <span className="font-medium text-sm sm:text-base whitespace-nowrap">
+                      Dialog
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
+                  Tippen zum Wechseln
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollbarer Chat-Container mit Padding unten für das fixierte Eingabefeld */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-4 py-6 space-y-6 pb-32">
+            <AnimatePresence mode="popLayout">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="max-w-4xl mx-auto"
+                >
+                  <MessageBubble message={message} branding={branding} />
+                </motion.div>
+              ))}
+              {isTyping && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="max-w-4xl mx-auto"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
+                      style={{ backgroundColor: branding?.primaryColor || 'var(--primary)' }}>
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <div className="px-6 py-4 rounded-2xl bg-white shadow-sm">
+                      <TypingIndicator branding={branding} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div ref={messagesEndRef} className="h-32" />
+          </div>
+        </div>
+
+        {/* Input Container - fixiert, nur im Chat-Zustand */}
+        <div className="absolute inset-x-0 bottom-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 z-20">
+          <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
+            <div className={cn(
+              "absolute inset-0 rounded-3xl blur-lg transition-all duration-500",
+              isFocused ? "opacity-70 scale-105" : "opacity-0 scale-100"
+            )} style={{ 
+              background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}20, ${branding?.secondaryColor || branding?.primaryColor || '#004730'}20)` 
+            }} />
+            
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r rounded-3xl" 
+                style={{ 
+                  backgroundImage: `linear-gradient(to right, ${branding?.primaryColor || 'var(--primary)'}0A, ${branding?.secondaryColor || branding?.primaryColor || 'var(--primary)'}0A)`
+                }} 
+              />
               <div className={`absolute h-7 w-[2px] top-1/2 -mt-3.5 transition-all duration-200 left-8 ${
                 input ? 'opacity-0' : 'opacity-100'
               } ${
-                isFocused ? 'bg-[#005e3f] animate-pulse' : 'bg-slate-300'
-              }`} />
+                isFocused ? 'animate-pulse' : ''
+              }`} 
+                style={{ 
+                  backgroundColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#cbd5e1'
+                }} 
+              />
               <input
                 ref={inputRef}
                 type="text"
@@ -686,282 +797,30 @@ Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durch
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder="Was möchten Sie wissen?"
-                className="w-full pl-8 pr-20 py-8 sm:py-10 text-lg sm:text-xl text-slate-700 bg-white/80 backdrop-blur-sm border-2 border-slate-200 hover:border-[#005e3f]/20 focus:border-[#005e3f] rounded-3xl shadow-xl transition-all duration-300 outline-none placeholder:text-slate-400"
-                style={{ caretColor: '#005e3f' }}
+                className="w-full pl-8 pr-24 py-6 text-base text-slate-700 bg-white backdrop-blur-sm border-2 rounded-3xl shadow-lg transition-all duration-300 outline-none placeholder:text-slate-400"
+                style={{ 
+                  caretColor: branding?.primaryColor || 'var(--primary)',
+                  borderColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#e2e8f0'
+                }}
+                disabled={isTyping}
               />
               <Button
                 type="submit"
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-gradient-to-r from-[#005e3f] to-[#004730] hover:from-[#004730] hover:to-[#005e3f] text-white h-12 px-4 rounded-xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl"
+                size="lg"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl h-12 px-5"
+                style={{ 
+                  background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}, ${branding?.secondaryColor || branding?.primaryColor || '#004730'})` 
+                }}
+                disabled={!input.trim() || isTyping}
               >
                 <Send className="h-5 w-5 sm:mr-2" />
                 <span className="hidden sm:inline">Fragen</span>
               </Button>
             </div>
-          </motion.form>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-center text-sm text-slate-500"
-          >
+          </form>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             Drücken Sie Enter zum Senden
-          </motion.p>
-        </motion.div>
-      )
-    }
-
-    return (
-      <div ref={ref} className="relative min-h-screen">
-        {/* Dialog Content */}
-        <div className="max-w-3xl mx-auto px-4 py-8">
-          {/* Dialog Headline */}
-          {content?.dialog && (
-            <DialogHeadline
-              searchTerm={content.dialog.title}
-              description={content.dialog.description}
-              exampleQuestion={bot?.examples?.[0]?.question}
-            />
-          )}
-
-          {/* Mode Switcher */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <div className="inline-flex flex-col items-center max-w-full">
-              <div 
-                onClick={() => onModeChange?.(!isDialogMode)}
-                className="flex items-center gap-3 bg-white rounded-full shadow-lg p-2 cursor-pointer hover:shadow-xl transition-all duration-300 w-auto"
-              >
-                {/* Left side - Classic Mode */}
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
-                  !isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
-                }`} 
-                style={{ 
-                  backgroundColor: !isDialogMode ? `${branding?.primaryColor}15` : 'transparent',
-                  borderColor: !isDialogMode ? branding?.primaryColor : 'transparent'
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="3" y1="9" x2="21" y2="9"/>
-                    <line x1="9" y1="21" x2="9" y2="9"/>
-                  </svg>
-                  <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: !isDialogMode ? branding?.primaryColor : '#666666' }}>
-                    Klassisch
-                  </span>
-                </div>
-
-                {/* Switch */}
-                <div className="relative w-12 h-6 bg-gray-200 rounded-full cursor-pointer shrink-0">
-                  <div 
-                    className="absolute w-5 h-5 rounded-full transition-all duration-300 shadow-md"
-                    style={{ 
-                      backgroundColor: branding?.primaryColor,
-                      left: isDialogMode ? '26px' : '2px',
-                      top: '2px'
-                    }}
-                  />
-                </div>
-
-                {/* Right side - Dialog Mode */}
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
-                  isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
-                }`} 
-                style={{ 
-                  backgroundColor: isDialogMode ? `${branding?.primaryColor}15` : 'transparent',
-                  borderColor: isDialogMode ? branding?.primaryColor : 'transparent'
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding?.primaryColor }}>
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: isDialogMode ? branding?.primaryColor : '#666666' }}>
-                    Dialog
-                  </span>
-                </div>
-              </div>
-
-              {/* Helper Text */}
-              <p className="mt-2 text-xs sm:text-sm text-gray-600">
-                Tippen zum Wechseln
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Messages */}
-          <div className="space-y-6">
-            <AnimatePresence initial={false}>
-              {messages.map((message, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                  transition={{ 
-                    duration: 0.2,
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 30
-                  }}
-                  className={`flex ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.1, duration: 0.2 }}
-                    className={`flex items-start gap-3 max-w-[85%] ${
-                      message.role === 'user' ? 'flex-row-reverse' : ''
-                    }`}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      className={`p-2 rounded-full shadow-sm flex-shrink-0 ${
-                        message.role === 'user'
-                          ? 'bg-gradient-to-r'
-                          : 'bg-white border border-slate-100'
-                      }`}
-                      style={
-                        message.role === 'user' 
-                          ? {
-                              background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                            }
-                          : {}
-                      }
-                    >
-                      {message.role === 'user' ? (
-                        <User className="w-4 h-4 text-white" />
-                      ) : (
-                        <Bot className="w-4 h-4" style={{ color: branding?.primaryColor }} />
-                      )}
-                    </motion.div>
-                    <motion.div
-                      initial={{ x: message.role === 'user' ? 20 : -20 }}
-                      animate={{ x: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      className={`py-3 px-4 rounded-2xl shadow-sm backdrop-blur-sm ${
-                        message.role === 'user'
-                          ? 'text-white'
-                          : 'bg-white/95 border border-slate-100 text-slate-700'
-                      }`}
-                      style={
-                        message.role === 'user' 
-                          ? {
-                              background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                            }
-                          : {}
-                      }
-                    >
-                      {message.content}
-                    </motion.div>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {/* Typing Indicator */}
-            <AnimatePresence>
-              {isTyping && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                  transition={{ 
-                    duration: 0.2,
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 30
-                  }}
-                  className="flex justify-start"
-                >
-                  <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.1, duration: 0.2 }}
-                    className="flex items-start gap-3 max-w-[85%]"
-                  >
-                    <motion.div
-                      animate={{ 
-                        scale: [1, 1.1, 1],
-                        rotate: [0, 5, -5, 0]
-                      }}
-                      transition={{ 
-                        duration: 2,
-                        repeat: Infinity,
-                        repeatType: "reverse"
-                      }}
-                      className="p-2 rounded-full bg-white border border-slate-100 shadow-sm"
-                    >
-                      <Bot className="w-4 h-4" style={{ color: branding?.primaryColor }} />
-                    </motion.div>
-                    <motion.div
-                      initial={{ x: -20 }}
-                      animate={{ x: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      className="py-3 px-4 rounded-2xl bg-white/95 border border-slate-100 shadow-sm backdrop-blur-sm"
-                    >
-                      <TypingIndicator />
-                    </motion.div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Input */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="fixed bottom-0 left-0 right-0 p-4"
-            style={{ 
-              background: `linear-gradient(to top, ${branding?.primaryColor}1A, transparent)`
-            }}
-          >
-            <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative">
-              <div 
-                className={`absolute inset-0 rounded-xl sm:rounded-2xl blur-lg transition-all duration-500 ${
-                  isFocused ? 'opacity-70 scale-105' : 'opacity-0 scale-100'
-                }`}
-                style={{
-                  background: `linear-gradient(to right, ${branding?.primaryColor}20, ${branding?.secondaryColor || branding?.primaryColor}20)`
-                }}
-              />
-              <div className="relative">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  placeholder="Stellen Sie Ihre Frage..."
-                  className={`w-full pl-4 sm:pl-6 pr-12 sm:pr-16 py-3 sm:py-4 text-sm sm:text-base text-slate-700 bg-white/80 backdrop-blur-sm border-2 rounded-xl sm:rounded-2xl shadow-lg transition-all duration-300 outline-none placeholder:text-slate-400 ${
-                    isFocused 
-                      ? 'border-primary' 
-                      : 'border-slate-200 hover:border-primary/20'
-                  }`}
-                  style={{ 
-                    caretColor: branding?.primaryColor,
-                    '--primary': branding?.primaryColor
-                  } as React.CSSProperties}
-                />
-                <Button 
-                  type="submit"
-                  className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-white h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
-                  style={{
-                    background: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`,
-                    backgroundImage: `linear-gradient(to right, ${branding?.primaryColor}, ${branding?.secondaryColor || branding?.primaryColor})`
-                  }}
-                >
-                  <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </Button>
-              </div>
-            </form>
-          </motion.div>
-
-          {/* Bottom Spacing for Fixed Input */}
-          <div className="h-32" />
+          </p>
         </div>
       </div>
     )

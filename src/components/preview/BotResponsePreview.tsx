@@ -2,195 +2,153 @@
 
 import { Example } from "@/lib/schemas/template"
 import { Button } from "@/components/ui/button"
-import { format } from 'date-fns'
-import { de } from 'date-fns/locale'
-import { ExternalLink, Download, MessageCircle, MapPin, Calendar, Tag, Info, FileText, Play } from 'lucide-react'
+import { CalendarIcon, MapPinIcon, FileIcon, ExternalLinkIcon, PhoneIcon, MessageSquareIcon, User2, Bot } from "lucide-react"
+import Image from "next/image"
+import { cn } from "@/lib/utils"
+import { useEffect, useRef } from "react"
 
 interface BotResponsePreviewProps {
   example: Example
 }
 
 export function BotResponsePreview({ example }: BotResponsePreviewProps) {
-  const renderMetadata = () => {
-    if (!example.metadata) return null
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    switch (example.type) {
-      case 'info':
-        return (
-          <div className="mt-4 flex items-center text-sm text-muted-foreground">
-            <Info className="w-4 h-4 mr-2" />
-            <span>Allgemeine Information</span>
-          </div>
-        )
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
 
-      case 'service':
-        return (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <FileText className="w-4 h-4 mr-2" />
-              <span>Service-Information</span>
+  useEffect(() => {
+    scrollToBottom()
+  }, [example])
+
+  const renderContent = () => {
+    const baseClasses = {
+      container: "space-y-4 px-4 overflow-y-auto",
+      messageGroup: "flex items-start gap-2.5",
+      avatar: "w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0",
+      userAvatar: "bg-primary",
+      botAvatar: "bg-muted-foreground",
+      messageContent: "flex flex-col gap-1",
+      messageBubble: "px-4 py-2 rounded-2xl max-w-[85%] text-[13px] leading-relaxed",
+      userBubble: "bg-primary/10 text-primary rounded-br-sm",
+      botBubble: "bg-card shadow-sm rounded-bl-sm",
+      mediaSection: "mt-3 -mx-4 first:mt-2",
+      buttonSection: "mt-3 space-y-1.5"
+    }
+
+    return (
+      <div className={baseClasses.container}>
+        {/* User Message */}
+        <div className={cn(baseClasses.messageGroup, "justify-end")}>
+          <div className={baseClasses.messageContent}>
+            <div className={cn(baseClasses.messageBubble, baseClasses.userBubble)}>
+              {example.question}
             </div>
-            {example.metadata.buttonText && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                {example.metadata.buttonText}
-              </Button>
-            )}
           </div>
-        )
+          <div className={cn(baseClasses.avatar, baseClasses.userAvatar)}>
+            <User2 className="w-4 h-4" />
+          </div>
+        </div>
 
-      case 'product':
-        return (
-          <div className="mt-4 space-y-4">
-            {example.metadata.image && (
-              <div className="relative aspect-video rounded-lg overflow-hidden">
-                <img
-                  src={example.metadata.image}
-                  alt="Produkt"
-                  className="object-cover w-full h-full"
-                />
+        {/* Bot Response */}
+        <div className={baseClasses.messageGroup}>
+          <div className={cn(baseClasses.avatar, baseClasses.botAvatar)}>
+            <Bot className="w-4 h-4" />
+          </div>
+          <div className={baseClasses.messageContent}>
+            <div className={cn(baseClasses.messageBubble, baseClasses.botBubble)}>
+              {/* Text Answer */}
+              <div className="prose prose-sm max-w-none [&>p]:text-[13px] [&>p]:leading-relaxed">
+                <p>{example.answer}</p>
               </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Tag className="w-4 h-4 mr-2" />
-                <span>Produkt-Information</span>
-              </div>
-              {example.metadata.price && (
-                <span className="text-lg font-semibold">{example.metadata.price}</span>
+
+              {/* Media Content */}
+              {example.metadata?.image && (
+                <div className={baseClasses.mediaSection}>
+                  <div className="relative h-40 overflow-hidden rounded-lg">
+                    <Image 
+                      src={example.metadata.image} 
+                      alt={`${example.type} Bild`}
+                      fill
+                      className="object-cover"
+                    />
+                    {example.type === 'video' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                          <div className="w-0 h-0 border-t-5 border-t-transparent border-l-8 border-l-primary border-b-5 border-b-transparent ml-1" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
-            </div>
-            {example.metadata.buttonText && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                {example.metadata.buttonText}
-              </Button>
-            )}
-          </div>
-        )
 
-      case 'event':
-        return (
-          <div className="mt-4 space-y-4">
-            {example.metadata.image && (
-              <div className="relative aspect-video rounded-lg overflow-hidden">
-                <img
-                  src={example.metadata.image}
-                  alt="Event"
-                  className="object-cover w-full h-full"
-                />
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-2" />
-                {example.metadata.date && (
-                  <span>{format(new Date(example.metadata.date), 'PPpp', { locale: de })}</span>
-                )}
-              </div>
-            </div>
-            {example.metadata.buttonText && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                {example.metadata.buttonText}
-              </Button>
-            )}
-          </div>
-        )
-
-      case 'location':
-        return (
-          <div className="mt-4 space-y-4">
-            {example.metadata.address && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <div className="flex items-center text-sm">
-                  <MapPin className="w-4 h-4 mr-2 text-primary" />
+              {/* Additional Info */}
+              {(example.type === 'event' || example.type === 'location') && example.metadata?.address && (
+                <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                  <MapPinIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
                   <span>{example.metadata.address}</span>
                 </div>
-              </div>
-            )}
-          </div>
-        )
+              )}
 
-      case 'video':
-        return (
-          <div className="mt-4 space-y-4">
-            {example.metadata.videoUrl && (
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-black/5">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Play className="w-12 h-12 text-primary" />
+              {example.type === 'event' && example.metadata?.date && (
+                <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                  <span>{new Date(example.metadata.date).toLocaleString('de-DE')}</span>
                 </div>
-                <iframe
-                  src={example.metadata.videoUrl}
-                  className="w-full h-full"
-                  allowFullScreen
-                />
-              </div>
-            )}
-          </div>
-        )
+              )}
 
-      case 'link':
-        return (
-          <div className="mt-4">
-            {example.metadata.url && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                {example.metadata.buttonText || 'Mehr erfahren'}
-              </Button>
-            )}
-          </div>
-        )
+              {example.type === 'product' && example.metadata?.price && (
+                <div className="mt-2 flex items-center text-xs">
+                  <span className="text-muted-foreground">Preis:</span>
+                  <span className="ml-2 font-medium">{example.metadata.price}</span>
+                </div>
+              )}
 
-      case 'contact':
-        return (
-          <div className="mt-4">
-            {example.metadata.url && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                <MessageCircle className="w-4 h-4 mr-2" />
-                {example.metadata.buttonText || 'Kontakt aufnehmen'}
-              </Button>
-            )}
-          </div>
-        )
+              {/* Action Buttons */}
+              {example.metadata?.url && (
+                <div className={baseClasses.buttonSection}>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="w-full justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8"
+                  >
+                    {example.metadata.buttonText || 'Mehr erfahren'}
+                    <ExternalLinkIcon className="ml-2 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
 
-      case 'download':
-        return (
-          <div className="mt-4">
-            {example.metadata.url && (
-              <Button className="w-full bg-primary/10 text-primary hover:bg-primary/20">
-                <Download className="w-4 h-4 mr-2" />
-                {example.metadata.buttonText || 'Download'}
-              </Button>
-            )}
+              {/* FAQ Related Questions */}
+              {example.type === 'faq' && example.metadata?.relatedQuestions && (
+                <div className={baseClasses.buttonSection}>
+                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Verwandte Fragen:</p>
+                  <div className="space-y-1">
+                    {example.metadata.relatedQuestions.split('\n').map((question, index) => (
+                      <Button 
+                        key={index}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-left h-auto py-1.5 px-2.5 text-xs hover:bg-primary/5"
+                      >
+                        <span className="line-clamp-2">{question}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )
-
-      case 'faq':
-        return (
-          <div className="mt-4 flex items-center text-sm text-muted-foreground">
-            <Info className="w-4 h-4 mr-2" />
-            <span>FAQ</span>
-          </div>
-        )
-
-      default:
-        return null
-    }
+        </div>
+        <div ref={messagesEndRef} />
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start space-x-2">
-        <div className="flex-1 space-y-2">
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-sm">{example.question}</p>
-          </div>
-          <div className="bg-primary/5 rounded-lg p-3">
-            <div className="prose prose-sm">
-              <p>{example.answer}</p>
-            </div>
-            {renderMetadata()}
-          </div>
-        </div>
-      </div>
+    <div className="max-w-2xl mx-auto h-[500px] overflow-y-auto">
+      {renderContent()}
     </div>
   )
 } 

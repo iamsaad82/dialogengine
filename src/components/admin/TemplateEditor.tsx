@@ -93,28 +93,25 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
 
     console.log('Template vor der Initialisierung:', template)
     
+    const parseJson = (jsonString: string, defaultValue: any) => {
+      try {
+        if (typeof jsonString !== 'string') return jsonString
+        if (jsonString.trim() === '') return defaultValue
+        return jsonString.startsWith('"') 
+          ? JSON.parse(JSON.parse(jsonString))
+          : JSON.parse(jsonString)
+      } catch (error) {
+        console.error('JSON Parse Error:', error)
+        return defaultValue
+      }
+    }
+    
     const parsedTemplate = {
       ...template,
-      jsonContent: typeof template.jsonContent === 'string' 
-        ? template.jsonContent.startsWith('"') 
-          ? JSON.parse(JSON.parse(template.jsonContent))
-          : JSON.parse(template.jsonContent)
-        : template.jsonContent,
-      jsonBranding: typeof template.jsonBranding === 'string'
-        ? template.jsonBranding.startsWith('"')
-          ? JSON.parse(JSON.parse(template.jsonBranding))
-          : JSON.parse(template.jsonBranding)
-        : template.jsonBranding,
-      jsonBot: typeof template.jsonBot === 'string'
-        ? template.jsonBot.startsWith('"')
-          ? JSON.parse(JSON.parse(template.jsonBot))
-          : JSON.parse(template.jsonBot)
-        : template.jsonBot,
-      jsonMeta: typeof template.jsonMeta === 'string'
-        ? template.jsonMeta.startsWith('"')
-          ? JSON.parse(JSON.parse(template.jsonMeta))
-          : JSON.parse(template.jsonMeta)
-        : template.jsonMeta
+      jsonContent: parseJson(template.jsonContent, defaultContent),
+      jsonBranding: parseJson(template.jsonBranding, defaultBranding),
+      jsonBot: parseJson(template.jsonBot, defaultBot),
+      jsonMeta: parseJson(template.jsonMeta, defaultMeta)
     }
     
     console.log('Geparste Template:', parsedTemplate)

@@ -20,7 +20,14 @@ const gradientColors = [
   'from-pink-500 to-rose-500',
 ]
 
-export default function TypingIndicator() {
+interface TypingIndicatorProps {
+  branding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+  } | null;
+}
+
+export default function TypingIndicator({ branding }: TypingIndicatorProps) {
   const [messageIndex, setMessageIndex] = useState(0)
   const [gradientIndex, setGradientIndex] = useState(0)
   const currentMessage = thinkingMessages[messageIndex]
@@ -82,7 +89,10 @@ export default function TypingIndicator() {
                   ease: "easeInOut"
                 }}
               >
-                <Icon className="h-4 w-4 text-indigo-500" />
+                <Icon 
+                  className="h-4 w-4" 
+                  style={{ color: branding?.primaryColor || 'var(--primary)' }}
+                />
               </motion.span>
             )}
             {currentMessage.text}
@@ -90,20 +100,19 @@ export default function TypingIndicator() {
 
           <div className="flex gap-1">
             {[0, 1, 2].map((i) => (
-              <motion.span
+              <motion.div
                 key={i}
-                animate={{ 
-                  scale: [1, 1.5, 1],
-                  opacity: [0.3, 1, 0.3],
-                  y: [0, -3, 0]
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: branding?.primaryColor || 'var(--primary)' }}
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.4, 1, 0.4]
                 }}
-                transition={{ 
-                  duration: 1.2, 
-                  repeat: Infinity, 
-                  delay: i * 0.15,
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-gradient-to-br ${gradientColors[gradientIndex]}`}
               />
             ))}
           </div>

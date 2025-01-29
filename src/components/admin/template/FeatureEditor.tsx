@@ -31,6 +31,13 @@ export function FeatureEditor({ features = [], onChange }: FeatureEditorProps) {
     }
   }>({})
 
+  // Stelle sicher, dass features immer ein Array ist
+  useEffect(() => {
+    if (!Array.isArray(features)) {
+      onChange([]);
+    }
+  }, [features, onChange]);
+
   const handleChange = (index: number, field: keyof Feature, value: string) => {
     let error = ''
 
@@ -45,7 +52,7 @@ export function FeatureEditor({ features = [], onChange }: FeatureEditorProps) {
       }
     }))
 
-    const newFeatures = [...features]
+    const newFeatures = [...(Array.isArray(features) ? features : [])]
     newFeatures[index] = {
       ...newFeatures[index],
       [field]: value
@@ -53,20 +60,25 @@ export function FeatureEditor({ features = [], onChange }: FeatureEditorProps) {
     onChange(newFeatures)
   }
 
-  const addFeature = () => {
-    onChange([
-      ...features,
+  const addFeature = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();  // Verhindert Bubble-Up des Events
+    const newFeatures = [
+      ...(Array.isArray(features) ? features : []),
       {
         icon: 'zap',
         title: '',
         description: ''
       }
-    ])
+    ];
+    onChange(newFeatures);
   }
 
-  const removeFeature = (index: number) => {
-    const newFeatures = features.filter((_, i) => i !== index)
-    onChange(newFeatures)
+  const removeFeature = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();  // Verhindert Bubble-Up des Events
+    const newFeatures = (Array.isArray(features) ? features : []).filter((_, i) => i !== index);
+    onChange(newFeatures);
   }
 
   // Initial validation
@@ -95,9 +107,10 @@ export function FeatureEditor({ features = [], onChange }: FeatureEditorProps) {
           <div className="flex justify-between items-center">
             <h4 className="font-medium">Feature {index + 1}</h4>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
-              onClick={() => removeFeature(index)}
+              onClick={(e) => removeFeature(index, e)}
               className="text-red-500 hover:text-red-600 hover:bg-red-50"
             >
               <Trash2 className="w-4 h-4" />
@@ -164,6 +177,7 @@ export function FeatureEditor({ features = [], onChange }: FeatureEditorProps) {
       ))}
 
       <Button
+        type="button"
         variant="outline"
         onClick={addFeature}
         className="w-full"

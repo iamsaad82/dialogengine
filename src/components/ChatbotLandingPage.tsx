@@ -41,8 +41,6 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
       // Set CSS variables for the template colors
       if (parsedBranding?.primaryColor) {
         document.documentElement.style.setProperty('--primary-color', parsedBranding.primaryColor);
-        // Set background color directly on html element (10% opacity)
-        document.documentElement.style.backgroundColor = `${parsedBranding.primaryColor}1A`;
       }
       
       // Set the content and branding directly
@@ -55,7 +53,9 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
 
   useEffect(() => {
     if (branding?.primaryColor) {
-      document.documentElement.style.setProperty('--background', `${branding.primaryColor}1A`);
+      // Convert hex color with opacity
+      document.documentElement.style.setProperty('--background', `${branding.primaryColor}05`);
+      document.documentElement.style.setProperty('--primary-color', branding.primaryColor);
     }
   }, [branding?.primaryColor]);
 
@@ -73,12 +73,12 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
   console.log('Rendering with branding:', branding);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-200 fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         <div className="max-w-6xl mx-auto flex justify-center items-center h-16">
           {branding.logo && (
-            <Link href="/">
+            <Link href={`/${template.subdomain}`}>
               <Image 
                 src={branding.logo.startsWith('/') ? branding.logo : `/${branding.logo}`}
                 alt={template.name}

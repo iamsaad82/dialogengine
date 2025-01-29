@@ -65,7 +65,11 @@ export default async function SubdomainPage({ params }: Props) {
 
       console.log("Template erfolgreich gemappt")
       
-      return <ChatbotLandingPage template={mappedTemplate} />
+      return (
+        <main className="min-h-screen">
+          <ChatbotLandingPage template={mappedTemplate} />
+        </main>
+      )
     } catch (error) {
       console.error("Fehler beim Parsen der JSON-Felder:", error)
       notFound()

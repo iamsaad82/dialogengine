@@ -1,5 +1,8 @@
+'use server'
+
 import { db } from '@/lib/db'
 import { Template } from '@/lib/schemas/template'
+import { ParsedBot } from '@/lib/types/template'
 
 export async function getTemplate(id: string): Promise<Template | null> {
   try {
@@ -16,17 +19,28 @@ export async function getTemplate(id: string): Promise<Template | null> {
   }
 }
 
-export async function updateTemplateBot(id: string, bot: any) {
+export async function updateTemplateBot(templateId: string, bot: ParsedBot): Promise<any> {
   try {
-    const template = await db.template.update({
-      where: { id },
-      data: {
-        jsonBot: JSON.stringify(bot)
-      }
-    })
-    return template
-  } catch (error) {
-    console.error('Fehler beim Aktualisieren des Bots:', error)
-    throw error
+    // Erstelle absolute URL für den API-Endpunkt
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const apiUrl = `${baseUrl}/api/templates/${templateId}/bot`
+    
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bot),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Fehler beim Speichern der Bot-Konfiguration');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error updating bot:', error);
+    throw new Error(error.message || 'Fehler beim Speichern der Bot-Konfiguration');
   }
 } 

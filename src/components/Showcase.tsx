@@ -35,13 +35,14 @@ export function Showcase({ content, onDialogModeClick, primaryColor }: ShowcaseP
       {/* Bild und Call-to-Action als zusammenhängende Einheit */}
       <div className="w-full shadow-lg rounded-lg overflow-hidden">
         {/* Bild */}
-        <div className="relative w-full aspect-[16/9]">
+        <div className="relative w-full h-auto">
           <Image
             src={content.image}
-            alt={content.altText || ''}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            alt={content.altText || "Showcase"}
+            width={1920}
+            height={1080}
+            className="w-full h-auto rounded-2xl shadow-xl"
+            priority
           />
         </div>
 
@@ -50,7 +51,7 @@ export function Showcase({ content, onDialogModeClick, primaryColor }: ShowcaseP
           <div 
             className="px-8 py-6 relative"
             style={{ 
-              background: `linear-gradient(to right, ${primaryColor}08, ${primaryColor}03), linear-gradient(to bottom, white, rgba(255, 255, 255, 0.95))`
+              background: `linear-gradient(to right, ${primaryColor}15, ${primaryColor}10), linear-gradient(to bottom, white, rgba(255, 255, 255, 0.95))`
             }}
           >
             <div className="flex items-center justify-between gap-12">

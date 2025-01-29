@@ -56,10 +56,6 @@ export interface ParsedContent {
     subtitle: string;
     description: string;
   };
-  dialog?: {
-    title: string;
-    description: string;
-  };
   showcase: {
     image: string;
     altText: string;
@@ -72,17 +68,18 @@ export interface ParsedContent {
       question: string;
     };
   };
-  features: {
-    title: string;
-    description: string;
-    icon: string;
-  }[];
+  features: Feature[];
   contact: {
     title: string;
     description: string;
     email: string;
     buttonText: string;
   };
+  dialog: {
+    title: string;
+    description: string;
+  };
+  jsonContent?: string;
 }
 export type ParsedBranding = z.infer<typeof brandingSchema>
 export type ParsedBot = {

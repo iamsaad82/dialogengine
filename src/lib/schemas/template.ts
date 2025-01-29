@@ -79,13 +79,26 @@ export const metadataSchema = z.object({
   videoUrl: z.string().url().optional()
 })
 
+export const ExampleMetadataSchema = z.object({
+  url: z.string().optional(),
+  image: z.string().optional(),
+  price: z.string().optional(),
+  date: z.string().optional(),
+  address: z.string().optional(),
+  buttonText: z.string().optional(),
+  videoUrl: z.string().optional(),
+  fileSize: z.string().optional(),
+  fileType: z.string().optional(),
+  relatedQuestions: z.string().optional()
+})
+
 // Example schema
 export const exampleSchema = z.object({
   question: z.string().min(1).max(500),
   answer: z.string().min(1).max(2000),
   context: z.string().max(100),
   type: responseTypeSchema,
-  metadata: metadataSchema.optional()
+  metadata: ExampleMetadataSchema
 })
 
 // Main content schema
