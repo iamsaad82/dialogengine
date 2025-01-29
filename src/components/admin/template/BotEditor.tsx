@@ -66,23 +66,9 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [localBot, setLocalBot] = useState<ParsedBot>({
-    type: bot.type,
+    type: 'examples' as const,
     examples: [],
-    flowiseId: bot.flowiseId,
-    smartSearch: bot.smartSearch ? {
-      provider: 'openai' as const,
-      urls: bot.smartSearch.urls || [],
-      excludePatterns: bot.smartSearch.excludePatterns || ['/admin/*', '/wp-*', '*.pdf', '/wp-json/*', '/api/*'],
-      chunkSize: bot.smartSearch.chunkSize || 300,
-      temperature: bot.smartSearch.temperature || 0.1,
-      reindexInterval: bot.smartSearch.reindexInterval || 24,
-      maxTokensPerRequest: bot.smartSearch.maxTokensPerRequest || 500,
-      useCache: bot.smartSearch.useCache ?? true,
-      similarityThreshold: bot.smartSearch.similarityThreshold || 0.8,
-      apiKey: bot.smartSearch.apiKey || '',
-      indexName: bot.smartSearch.indexName || '',
-      apiEndpoint: bot.smartSearch.apiEndpoint || ''
-    } : undefined
+    flowiseId: '',
   })
 
   useEffect(() => {

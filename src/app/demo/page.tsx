@@ -23,6 +23,18 @@ const demoTemplate: Omit<Template, 'createdAt' | 'updatedAt'> & {
     dialog: {
       title: 'Wie kann ich helfen?',
       description: 'Ich beantworte gerne Ihre Fragen'
+    },
+    showcase: {
+      image: '/showcase-demo.png',
+      altText: 'Demo Showcase',
+      context: {
+        title: 'Intelligente Konversation',
+        description: 'Erleben Sie, wie einfach die Kommunikation sein kann'
+      },
+      cta: {
+        title: 'Jetzt testen',
+        question: 'Möchten Sie mehr über unsere Funktionen erfahren?'
+      }
     }
   }),
   jsonBranding: JSON.stringify({
@@ -55,7 +67,11 @@ export default function DemoPage() {
       <div className="container mx-auto py-8">
         <h1 className="text-2xl font-bold mb-8">Dialog Engine Demo</h1>
         <TemplateEditor 
-          template={demoTemplate as Template}
+          template={{
+            ...demoTemplate,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as Template}
           onSave={async () => {
             console.log('Demo: Speichern wurde geklickt')
           }}

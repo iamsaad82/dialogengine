@@ -19,7 +19,7 @@ type PrismaTemplate = {
 export const defaultTemplate: Template = {
   id: 'default',
   name: 'Neutrale Version',
-  type: 'neutral',
+  type: 'NEUTRAL',
   active: true,
   content: JSON.stringify({
     hero: {
@@ -91,7 +91,7 @@ export const defaultTemplate: Template = {
 export const smgTemplate: Template = {
   id: 'smg',
   name: 'Social Media Marketing Center',
-  type: 'industry',
+  type: 'INDUSTRY',
   active: true,
   subdomain: 'smg',
   content: JSON.stringify({
@@ -164,7 +164,7 @@ export const smgTemplate: Template = {
 export const aokTemplate: Template = {
   id: 'aok',
   name: 'AOK',
-  type: 'industry',
+  type: 'INDUSTRY',
   active: true,
   subdomain: 'aok',
   content: JSON.stringify({

@@ -146,58 +146,13 @@ ${availableExamples}
 Oder wechseln Sie in den klassischen Modus, um alle Inhalte der Website zu durchsuchen.`)
             }]);
           }
-        } else if (bot?.type === 'smart-search' && bot.smartSearch) {
-          // Smart Search Modus
-          try {
-            // Künstliche Denkzeit für natürlicheres Verhalten
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const response = await fetch(bot.smartSearch.apiEndpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(bot.smartSearch.apiKey && { 'Authorization': `Bearer ${bot.smartSearch.apiKey}` })
-              },
-              body: JSON.stringify({
-                query: userMessage,
-                indexName: bot.smartSearch.indexName,
-                history: messages.map(msg => ({
-                  role: msg.role,
-                  content: typeof msg.content === 'string' ? msg.content : 'Complex content'
-                }))
-              })
-            });
-
-            if (!response.ok) {
-              throw new Error('Netzwerk-Antwort war nicht ok');
-            }
-
-            const data = await response.json();
-
-            // Weitere künstliche Verzögerung für die Antwortformulierung
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            setIsTyping(false);
-            
-            if (data.answer) {
-              setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: processResponse(data.answer, data.type, data.metadata)
-              }]);
-            } else {
-              setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: processResponse('Entschuldigung, ich konnte in den Dokumenten keine passende Antwort finden. Können Sie Ihre Frage anders formulieren?')
-              }]);
-            }
-          } catch (error) {
-            console.error('Smart Search error:', error);
-            setIsTyping(false);
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: processResponse('Entschuldigung, bei der Suche ist ein Fehler aufgetreten. Bitte versuchen Sie es später noch einmal.')
-            }]);
-          }
+        } else if (bot?.type === 'smart-search') {
+          setIsTyping(false);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Smart Search ist derzeit in Entwicklung. Bitte verwenden Sie vorerst die anderen Bot-Typen.'
+          }]);
+          return;
         } else if (bot?.type === 'flowise' && bot.flowiseId) {
           // Flowise-Modus mit künstlicher Verzögerung
           try {

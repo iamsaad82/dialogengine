@@ -21,6 +21,9 @@ export default async function SubdomainPage({ params }: Props) {
       where: {
         subdomain: cleanSubdomain,
         active: true // Nur aktive Templates
+      },
+      include: {
+        flowiseConfig: true
       }
     })
 

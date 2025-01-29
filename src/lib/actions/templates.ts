@@ -6,7 +6,10 @@ export async function getTemplate(id: string): Promise<Template | null> {
     const template = await db.template.findUnique({
       where: { id }
     })
-    return template
+    if (template && (template.type === 'NEUTRAL' || template.type === 'INDUSTRY' || template.type === 'CUSTOM')) {
+      return template as Template
+    }
+    return null
   } catch (error) {
     console.error('Fehler beim Laden des Templates:', error)
     return null

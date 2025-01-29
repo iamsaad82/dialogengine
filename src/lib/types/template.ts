@@ -15,17 +15,17 @@ import {
 export type Template = {
   id: string
   name: string
-  type: z.infer<typeof templateTypeSchema>
+  type: 'NEUTRAL' | 'INDUSTRY' | 'CUSTOM'
   active: boolean
   subdomain: string | null
   jsonContent: string | any
   jsonBranding: string | any
   jsonBot: string | any
   jsonMeta: string | any
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string | Date
+  updatedAt: string | Date
   flowiseConfig?: any
-  flowiseConfigId?: string
+  flowiseConfigId?: string | null
 }
 
 export type ParsedTemplate = {
@@ -85,14 +85,23 @@ export interface ParsedContent {
   };
 }
 export type ParsedBranding = z.infer<typeof brandingSchema>
-export interface ParsedBot {
-  type: 'examples' | 'flowise' | 'smart-search';
-  examples?: Example[];
-  flowiseId?: string;
+export type ParsedBot = {
+  type: 'examples' | 'flowise' | 'smart-search'
+  examples: Example[]
+  flowiseId?: string
   smartSearch?: {
-    apiEndpoint: string;
-    indexName: string;
-    apiKey?: string;
-  };
+    provider: 'openai'
+    urls: string[]
+    excludePatterns: string[]
+    chunkSize: number
+    temperature: number
+    reindexInterval: number
+    maxTokensPerRequest: number
+    useCache: boolean
+    similarityThreshold: number
+    apiKey?: string
+    indexName?: string
+    apiEndpoint?: string
+  }
 }
 export type ParsedMeta = z.infer<typeof metaSchema> 

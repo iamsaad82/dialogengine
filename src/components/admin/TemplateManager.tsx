@@ -22,84 +22,13 @@ const defaultTemplate: Template = {
   name: 'Demo Template',
   type: 'NEUTRAL',
   active: true,
-  subdomain: 'default',
-  jsonContent: JSON.stringify({
-    hero: {
-      title: 'Content Management mit KI',
-      subtitle: 'Intelligent. Effizient. Zukunftssicher.',
-      description: 'Entdecken Sie die Zukunft des Content Managements.'
-    },
-    showcase: {
-      image: '/showcase-default.png',
-      altText: 'Content Management Demo',
-      context: {
-        title: 'Intelligente Inhaltsanalyse',
-        description: 'Unsere KI analysiert Ihre Inhalte und gibt Ihnen wertvolle Einblicke zur Optimierung.'
-      },
-      cta: {
-        title: 'Jetzt entdecken',
-        question: 'Möchten Sie mehr über unsere KI-Funktionen erfahren?'
-      }
-    },
-    features: [
-      {
-        title: 'KI-gestützte Analyse',
-        description: 'Automatische Analyse und Kategorisierung Ihrer Inhalte',
-        icon: 'brain'
-      },
-      {
-        title: 'Intelligente Vorschläge',
-        description: 'Erhalten Sie KI-basierte Vorschläge zur Verbesserung Ihrer Inhalte',
-        icon: 'zap'
-      },
-      {
-        title: 'Echtzeit-Collaboration',
-        description: 'Arbeiten Sie in Echtzeit mit Ihrem Team an Inhalten',
-        icon: 'clock'
-      }
-    ],
-    callToAction: {
-      title: 'Testen Sie unser KI-System',
-      description: 'Erleben Sie die Zukunft des Content Managements',
-      primaryButton: {
-        text: 'Demo starten',
-        url: '#'
-      }
-    },
-    contact: {
-      title: 'Kontaktieren Sie uns',
-      description: 'Wir sind für Sie da',
-      email: 'demo@example.com',
-      buttonText: 'Kontakt aufnehmen'
-    }
-  }),
-  jsonBranding: JSON.stringify({
-    logo: '/showcase-default.png',
-    primaryColor: '#4F46E5',
-    secondaryColor: '#7C3AED'
-  }),
-  jsonBot: JSON.stringify({
-    type: 'examples',
-    examples: [
-      {
-        question: 'Was kann Ihr Content Management System?',
-        answer: 'Unser KI-gestütztes CMS bietet:\n• Automatische Inhaltsanalyse\n• KI-basierte Optimierungsvorschläge\n• Echtzeit-Collaboration\n• Intelligente Kategorisierung\n• Automatische SEO-Optimierung',
-        type: 'info',
-        context: 'Funktionen'
-      },
-      {
-        question: 'Wie funktioniert die KI-Analyse?',
-        answer: 'Die KI-Analyse läuft in mehreren Schritten ab:\n• Scanning Ihrer bestehenden Inhalte\n• Analyse von Struktur und Qualität\n• Erstellung von Optimierungsvorschlägen\n• Kontinuierliches Lernen aus Feedback',
-        type: 'info',
-        context: 'KI-Analyse'
-      }
-    ],
-    flowiseId: ''
-  }),
-  jsonMeta: JSON.stringify({
-    title: 'KI Content Management Demo',
-    description: 'Erleben Sie die Zukunft des Content Managements mit unserer KI-gestützten Lösung.'
-  })
+  subdomain: '',
+  jsonContent: '',
+  jsonBranding: '',
+  jsonBot: '',
+  jsonMeta: '',
+  createdAt: new Date(),
+  updatedAt: new Date()
 }
 
 const parseTemplate = (template: Template): Template => {
