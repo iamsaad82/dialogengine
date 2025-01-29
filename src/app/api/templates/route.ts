@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import '@/lib/env'
+import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '@/lib/prisma'
 
-// GET /api/templates
+export const runtime = 'edge'
+
 export async function GET() {
   try {
-    const templates = await prisma.template.findMany()
+    const templates = await getTemplates()
     return NextResponse.json(templates)
   } catch (error) {
     console.error('GET error:', error)
@@ -13,123 +13,40 @@ export async function GET() {
   }
 }
 
-// POST /api/templates
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json()
-    console.log('POST body:', body)
-    
-    // If ID is present, treat it as an update
-    if (body.id) {
-      const template = await prisma.template.update({
-        where: { id: body.id },
-        data: {
-          name: body.name,
-          type: (body.type || "NEUTRAL").toUpperCase() as "NEUTRAL" | "INDUSTRY" | "CUSTOM",
-          active: body.active ?? true,
-          subdomain: body.subdomain,
-          jsonContent: typeof body.jsonContent === 'string' ? body.jsonContent : JSON.stringify(body.jsonContent || {}),
-          jsonBranding: typeof body.jsonBranding === 'string' ? body.jsonBranding : JSON.stringify(body.jsonBranding || {}),
-          jsonBot: typeof body.jsonBot === 'string' ? body.jsonBot : JSON.stringify(body.jsonBot || {}),
-          jsonMeta: typeof body.jsonMeta === 'string' ? body.jsonMeta : JSON.stringify(body.jsonMeta || {})
-        }
-      })
-
-      return NextResponse.json(template)
-    }
-    
-    // Create new template if no ID is present
-    const template = await prisma.template.create({
-      data: {
-        name: body.name || "Neues Template",
-        type: (body.type || "NEUTRAL").toUpperCase() as "NEUTRAL" | "INDUSTRY" | "CUSTOM",
-        active: body.active ?? true,
-        subdomain: body.subdomain || `template-${Date.now()}`,
-        jsonContent: typeof body.jsonContent === 'string' ? body.jsonContent : JSON.stringify(body.jsonContent || {}),
-        jsonBranding: typeof body.jsonBranding === 'string' ? body.jsonBranding : JSON.stringify(body.jsonBranding || {}),
-        jsonBot: typeof body.jsonBot === 'string' ? body.jsonBot : JSON.stringify(body.jsonBot || {}),
-        jsonMeta: typeof body.jsonMeta === 'string' ? body.jsonMeta : JSON.stringify(body.jsonMeta || {})
-      }
-    })
-
+    const data = await req.json()
+    const template = await createTemplate(data)
     return NextResponse.json(template)
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST error:', error)
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "Subdomain bereits vorhanden" },
-        { status: 400 }
-      )
-    }
-    return NextResponse.json(
-      { error: "Fehler beim Erstellen des Templates" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Fehler beim Erstellen des Templates" }, { status: 500 })
   }
 }
 
-// PUT /api/templates/:id
-export async function PUT(request: Request) {
+export async function PUT(req: Request) {
   try {
-    const body = await request.json()
-    console.log('PUT body:', body)
-
-    if (!body.id) {
-      return NextResponse.json({ error: "ID fehlt" }, { status: 400 })
-    }
-
-    const template = await prisma.template.update({
-      where: { id: body.id },
-      data: {
-        name: body.name,
-        type: (body.type || "NEUTRAL").toUpperCase() as "NEUTRAL" | "INDUSTRY" | "CUSTOM",
-        active: body.active ?? true,
-        subdomain: body.subdomain,
-        jsonContent: typeof body.jsonContent === 'string' ? body.jsonContent : JSON.stringify(body.jsonContent || {}),
-        jsonBranding: typeof body.jsonBranding === 'string' ? body.jsonBranding : JSON.stringify(body.jsonBranding || {}),
-        jsonBot: typeof body.jsonBot === 'string' ? body.jsonBot : JSON.stringify(body.jsonBot || {}),
-        jsonMeta: typeof body.jsonMeta === 'string' ? body.jsonMeta : JSON.stringify(body.jsonMeta || {})
-      }
-    })
-
-    console.log('Updated template:', template)
+    const data = await req.json()
+    const { id } = data
+    const template = await updateTemplate(id, data)
     return NextResponse.json(template)
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('PUT error:', error)
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "Subdomain bereits vorhanden" },
-        { status: 400 }
-      )
-    }
-    return NextResponse.json(
-      { error: "Fehler beim Aktualisieren des Templates" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Fehler beim Aktualisieren des Templates" }, { status: 500 })
   }
 }
 
-// DELETE /api/templates/:id
-export async function DELETE(request: Request) {
+export async function DELETE(req: Request) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-
     if (!id) {
-      return NextResponse.json({ error: "ID fehlt" }, { status: 400 })
+      return NextResponse.json({ error: "ID ist erforderlich" }, { status: 400 })
     }
-
-    await prisma.template.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ success: true }, { status: 200 })
+    await deleteTemplate(id)
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE error:', error)
-    return NextResponse.json(
-      { error: "Fehler beim Löschen des Templates" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Fehler beim Löschen des Templates" }, { status: 500 })
   }
 } 

@@ -1,21 +1,37 @@
-import { PrismaClient } from '@prisma/client'
+import { neon } from '@neondatabase/serverless'
 
-let prisma: PrismaClient
+const sql = neon(process.env.POSTGRES_URL_NON_POOLING!)
 
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient({
-    log: ['error'],
-    datasourceUrl: process.env.POSTGRES_PRISMA_URL
-  })
-} else {
-  // Prevent multiple instances in development
-  if (!(global as any).prisma) {
-    (global as any).prisma = new PrismaClient({
-      log: ['error'],
-      datasourceUrl: process.env.POSTGRES_PRISMA_URL
-    })
-  }
-  prisma = (global as any).prisma
+export async function getTemplates() {
+  const templates = await sql`
+    SELECT * FROM Template
+  `
+  return templates
 }
 
-export { prisma } 
+export async function createTemplate(data: any) {
+  const template = await sql`
+    INSERT INTO Template (name, content)
+    VALUES (${data.name}, ${data.content})
+    RETURNING *
+  `
+  return template[0]
+}
+
+export async function updateTemplate(id: string, data: any) {
+  const template = await sql`
+    UPDATE Template 
+    SET name = ${data.name}, content = ${data.content}
+    WHERE id = ${id}
+    RETURNING *
+  `
+  return template[0]
+}
+
+export async function deleteTemplate(id: string) {
+  await sql`
+    DELETE FROM Template 
+    WHERE id = ${id}
+  `
+  return true
+} 
