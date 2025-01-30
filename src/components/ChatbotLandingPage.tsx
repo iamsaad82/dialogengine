@@ -24,6 +24,8 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
 
   React.useEffect(() => {
     try {
+      console.log('Template content before parsing:', template.jsonContent);
+      
       // Parse content if it's a string
       const parsedContent = typeof template.jsonContent === 'string' 
         ? JSON.parse(template.jsonContent) 
@@ -34,7 +36,6 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
         ? JSON.parse(template.jsonBranding)
         : template.jsonBranding;
       
-      console.log('Template content:', template.jsonContent);
       console.log('Parsed content:', parsedContent);
       console.log('Parsed branding:', parsedBranding);
       
@@ -48,6 +49,8 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
       setBranding(parsedBranding);
     } catch (error) {
       console.error('Error parsing template data:', error);
+      console.error('Template content that caused error:', template.jsonContent);
+      console.error('Template branding that caused error:', template.jsonBranding);
     }
   }, [template]);
 
