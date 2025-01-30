@@ -2,7 +2,20 @@
 const nextConfig = {
   images: {
     domains: ['dialog-engine.vercel.app', 'localhost', '127.0.0.1'],
-    unoptimized: true
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dialog-engine.vercel.app',
+        pathname: '/uploads/**',
+      }
+    ]
   },
   typescript: {
     ignoreBuildErrors: false

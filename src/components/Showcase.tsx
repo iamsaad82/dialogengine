@@ -43,6 +43,7 @@ export function Showcase({ content, onDialogModeClick, primaryColor }: ShowcaseP
             height={1080}
             className="w-full h-auto rounded-2xl shadow-xl"
             priority
+            unoptimized
           />
         </div>
 
