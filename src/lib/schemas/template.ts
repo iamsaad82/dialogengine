@@ -84,21 +84,41 @@ export const ExampleMetadataSchema = z.object({
   image: z.string().optional(),
   price: z.string().optional(),
   date: z.string().optional(),
+  time: z.string().optional(),
+  sessions: z.string().optional(),
+  available: z.boolean().optional(),
   address: z.string().optional(),
   buttonText: z.string().optional(),
   videoUrl: z.string().optional(),
   fileSize: z.string().optional(),
   fileType: z.string().optional(),
-  relatedQuestions: z.string().optional()
+  relatedQuestions: z.string().optional(),
+  title: z.string().optional()
 })
 
 // Example schema
 export const exampleSchema = z.object({
-  question: z.string().min(1).max(500),
-  answer: z.string().min(1).max(2000),
-  context: z.string().max(100),
-  type: responseTypeSchema,
-  metadata: ExampleMetadataSchema
+  id: z.string().optional(),
+  type: z.enum(['info', 'service', 'link', 'contact', 'product', 'location', 'faq', 'event', 'download', 'video']),
+  question: z.string(),
+  answer: z.string(),
+  context: z.string(),
+  metadata: z.object({
+    url: z.string().optional(),
+    buttonText: z.string().optional(),
+    image: z.string().optional(),
+    date: z.string().optional(),
+    time: z.string().optional(),
+    sessions: z.string().optional(),
+    available: z.union([z.boolean(), z.string()]).optional(),
+    title: z.string().optional(),
+    address: z.string().optional(),
+    price: z.string().optional(),
+    fileType: z.string().optional(),
+    fileSize: z.string().optional(),
+    videoUrl: z.string().optional(),
+    relatedQuestions: z.string().optional()
+  })
 })
 
 // Main content schema
@@ -177,13 +197,17 @@ export const botSchema = z.object({
   type: z.enum(['examples', 'flowise', 'smart-search']),
   examples: z.array(exampleSchema).default([]),
   flowiseId: z.string().optional(),
+  templateId: z.string().optional(),
   smartSearch: smartSearchSchema.optional()
 })
 
 // Meta schema
 export const metaSchema = z.object({
-  title: z.string().min(1).max(60),
-  description: z.string().max(160)
+  title: z.string(),
+  description: z.string(),
+  domain: z.string().optional(),
+  contactUrl: z.string().optional(),
+  servicesUrl: z.string().optional()
 })
 
 // Complete template schema

@@ -47,9 +47,10 @@ export type ParsedTemplate = {
 export type DbTemplate = Template
 
 export type IconType = z.infer<typeof iconTypeSchema>
+export type TemplateType = z.infer<typeof templateTypeSchema>
+export type ResponseType = z.infer<typeof responseTypeSchema>
 export type Feature = z.infer<typeof featureSchema>
 export type Example = z.infer<typeof exampleSchema>
-export type ResponseType = z.infer<typeof responseTypeSchema>
 export interface ParsedContent {
   hero: {
     title: string;
@@ -82,10 +83,11 @@ export interface ParsedContent {
   jsonContent?: string;
 }
 export type ParsedBranding = z.infer<typeof brandingSchema>
-export type ParsedBot = {
+export interface ParsedBot {
   type: 'examples' | 'flowise' | 'smart-search'
   examples: Example[]
   flowiseId?: string
+  templateId?: string
   smartSearch?: {
     provider: 'openai'
     urls: string[]
@@ -96,9 +98,26 @@ export type ParsedBot = {
     maxTokensPerRequest: number
     useCache: boolean
     similarityThreshold: number
-    apiKey?: string
-    indexName?: string
-    apiEndpoint?: string
+    apiKey: string
+    indexName: string
+    apiEndpoint: string
   }
 }
-export type ParsedMeta = z.infer<typeof metaSchema> 
+export type ParsedMeta = z.infer<typeof metaSchema>
+
+export interface ExampleMetadata {
+  url?: string;
+  image?: string;
+  price?: string;
+  date?: string;
+  time?: string;
+  sessions?: string;
+  available?: boolean | string;
+  address?: string;
+  buttonText?: string;
+  videoUrl?: string;
+  fileSize?: string;
+  fileType?: string;
+  relatedQuestions?: string;
+  title?: string;
+} 

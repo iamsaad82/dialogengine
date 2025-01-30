@@ -1,10 +1,65 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
+
 const prisma = new PrismaClient()
 
 async function main() {
   // Lösche alle vorhandenen Daten
+  await prisma.chatLog.deleteMany()
   await prisma.template.deleteMany()
   await prisma.flowiseConfig.deleteMany()
+  await prisma.responseType.deleteMany()
+  await prisma.asset.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Erstelle Admin User
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+  await prisma.user.create({
+    data: {
+      email: 'admin@example.com',
+      name: 'Admin User',
+      hashedPassword,
+      role: UserRole.ADMIN
+    }
+  })
+
+  // Erstelle Response Types
+  await prisma.responseType.create({
+    data: {
+      name: 'info',
+      schema: JSON.stringify({
+        type: 'object',
+        properties: {
+          buttonText: { type: 'string' },
+          url: { type: 'string' }
+        }
+      })
+    }
+  })
+
+  await prisma.responseType.create({
+    data: {
+      name: 'contact',
+      schema: JSON.stringify({
+        type: 'object',
+        properties: {
+          buttonText: { type: 'string' },
+          url: { type: 'string' }
+        }
+      })
+    }
+  })
+
+  // Erstelle Demo Assets
+  await prisma.asset.create({
+    data: {
+      type: 'image',
+      url: '/showcase-default.png',
+      key: 'showcase-default',
+      size: 1024,
+      mimeType: 'image/png'
+    }
+  })
 
   // Erstelle ein Standard-Template
   await prisma.template.create({
@@ -44,6 +99,16 @@ async function main() {
             icon: "Users"
           }
         ],
+        contact: {
+          title: "Sprechen Sie mit uns",
+          description: "Sie möchten mehr über die Dialog Engine erfahren? Unser Team berät Sie gerne zu den Möglichkeiten für Ihre Website.",
+          email: "contact@example.com",
+          buttonText: "Beratungsgespräch vereinbaren"
+        },
+        dialog: {
+          title: "Haben Sie Fragen?",
+          description: "Stellen Sie uns Ihre Fragen - unser KI-System hilft Ihnen gerne weiter."
+        },
         callToAction: {
           title: "Testen Sie unser KI-System",
           description: "Erleben Sie die Zukunft des Content Managements",
@@ -61,6 +126,22 @@ async function main() {
       jsonBot: JSON.stringify({
         type: "examples",
         examples: [
+          {
+            question: "Welche Kurse bietet die AOK an?",
+            answer: "Wir bieten verschiedene Gesundheitskurse an. Hier ist ein aktueller Kurs in Ihrer Nähe:",
+            type: "event",
+            context: "Kurse",
+            metadata: {
+              title: "Functional Training",
+              address: "2,12 km | 44869 Bochum",
+              date: "2025-04-30",
+              time: "18:00 - 19:00 Uhr",
+              sessions: "8 Termine",
+              available: true,
+              buttonText: "Jetzt anmelden",
+              url: "https://www.aok.de/pk/nordwest/kurse/"
+            }
+          },
           {
             question: "Was kann Ihr Content Management System?",
             answer: "Unser KI-gestütztes CMS bietet:\n• Automatische Inhaltsanalyse\n• KI-basierte Optimierungsvorschläge\n• Echtzeit-Collaboration\n• Intelligente Kategorisierung\n• Automatische SEO-Optimierung",
