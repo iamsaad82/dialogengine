@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { Button } from "@/components/ui/button"
-import { createResponseConfig, ResponseConfig, BASE_CONFIG } from '@/config/responseConfig'
+import { createResponseConfig, ResponseConfig, defaultBaseConfig } from '@/config/responseConfig'
 import ConfigPreview from './ConfigPreview'
 
 interface ConfigEditorProps {
@@ -114,7 +114,7 @@ export default function ConfigEditor({ onSave }: ConfigEditorProps) {
                 Hauptlink-URL
               </label>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">{BASE_CONFIG.domain}</span>
+                <span className="text-sm text-gray-500">{defaultBaseConfig.domain}</span>
                 <input
                   type="text"
                   value={mainUrl}
@@ -178,7 +178,7 @@ export default function ConfigEditor({ onSave }: ConfigEditorProps) {
                     URL
                   </label>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">{BASE_CONFIG.domain}</span>
+                    <span className="text-sm text-gray-500">{defaultBaseConfig.domain}</span>
                     <input
                       type="text"
                       value={url.url}

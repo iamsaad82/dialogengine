@@ -18,6 +18,12 @@ export interface BaseConfig {
   defaultServicesUrl: string
 }
 
+export const defaultBaseConfig: BaseConfig = {
+  domain: 'https://example.com',
+  defaultContactUrl: '/kontakt',
+  defaultServicesUrl: '/leistungen'
+}
+
 // Automatische URL-Erkennung
 export const detectUrlsInText = (text: string): string[] => {
   const urlRegex = /(https?:\/\/[^\s]+)/g
