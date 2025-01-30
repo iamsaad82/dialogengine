@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // Speichern des Chat-Logs
-    const chatLog = await prisma.ChatLog.create({
+    const chatLog = await prisma.chatLog.create({
       data: {
         timestamp: new Date(data.timestamp),
         question: data.question,
