@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['dialog-engine.vercel.app', 'localhost', '127.0.0.1'],
+    domains: ['dialog-engine.vercel.app', 'localhost', '127.0.0.1', 'dialog-ai-web.de', 'dialog-engine.onrender.com'],
     unoptimized: true,
     remotePatterns: [
       {
@@ -13,6 +13,16 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'dialog-engine.vercel.app',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dialog-ai-web.de',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dialog-engine.onrender.com',
         pathname: '/uploads/**',
       }
     ]
