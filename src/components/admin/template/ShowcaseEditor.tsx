@@ -150,7 +150,13 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
             id="showcase-image"
             label="Showcase Bild hochladen"
             value={showcase.image}
-            onChange={(url) => handleChange('image', url)}
+            onChange={(url) => {
+              console.log('Neues Showcase-Bild URL:', url);
+              // Stelle sicher, dass die URL mit einem Slash beginnt
+              const formattedUrl = url.startsWith('/') ? url : `/${url}`;
+              console.log('Formatierte URL:', formattedUrl);
+              handleChange('image', formattedUrl);
+            }}
           />
           {errors.image && (
             <p className="text-sm text-red-500 mt-1">{errors.image}</p>

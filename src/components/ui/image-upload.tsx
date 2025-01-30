@@ -71,6 +71,7 @@ export function ImageUpload({
       }
 
       const data = await response.json()
+      console.log('Upload Response:', data)
       onChange(data.url)
       toast.success('Bild erfolgreich hochgeladen')
     } catch (error: any) {
