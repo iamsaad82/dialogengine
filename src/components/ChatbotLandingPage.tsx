@@ -26,17 +26,23 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
     try {
       console.log('Template content before parsing:', template.jsonContent);
       
-      // Parse content if it's a string
+      // Parse content if it's a string and remove nested jsonContent fields
       const parsedContent = typeof template.jsonContent === 'string' 
-        ? JSON.parse(template.jsonContent) 
+        ? JSON.parse(template.jsonContent)
         : template.jsonContent;
+      
+      // Remove nested jsonContent fields to prevent circular references
+      const cleanContent = JSON.parse(JSON.stringify(parsedContent, (key, value) => {
+        if (key === 'jsonContent') return undefined;
+        return value;
+      }));
       
       // Parse branding if it's a string
       const parsedBranding = typeof template.jsonBranding === 'string'
         ? JSON.parse(template.jsonBranding)
         : template.jsonBranding;
       
-      console.log('Parsed content:', parsedContent);
+      console.log('Cleaned content:', cleanContent);
       console.log('Parsed branding:', parsedBranding);
       
       // Set CSS variables for the template colors
@@ -45,7 +51,7 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
       }
       
       // Set the content and branding directly
-      setContent(parsedContent);
+      setContent(cleanContent);
       setBranding(parsedBranding);
     } catch (error) {
       console.error('Error parsing template data:', error);
