@@ -12,11 +12,10 @@ export interface ResponseConfig {
   priority?: number     // Höhere Priorität wird zuerst geprüft
 }
 
-// Basis-URLs für die Website
-export const BASE_CONFIG = {
-  domain: 'https://sawatzki-muehlenbruch.de',
-  defaultContactUrl: '/kontakt/',
-  defaultServicesUrl: '/leistungen/'
+export interface BaseConfig {
+  domain: string
+  defaultContactUrl: string
+  defaultServicesUrl: string
 }
 
 // Automatische URL-Erkennung
@@ -26,102 +25,89 @@ export const detectUrlsInText = (text: string): string[] => {
 }
 
 // Zentrale Konfiguration für alle Antworttypen
-export const responseConfigs: ResponseConfig[] = [
-  {
-    type: 'social-media',
-    priority: 100,
-    contentType: 'list',
-    match: [
-      'social media',
-      'facebook',
-      'instagram',
-      'linkedin',
-      'social-media-marketing',
-      'social media marketing',
-      'social-media-strategie',
-      'social media strategie'
-    ],
-    actions: [
-      {
-        label: 'Social Media Expertise',
-        url: `${BASE_CONFIG.domain}/leistungen/social-media/`,
-        primary: true
-      },
-      {
-        label: 'Beratungsgespräch vereinbaren',
-        url: `${BASE_CONFIG.domain}${BASE_CONFIG.defaultContactUrl}`
-      }
-    ]
-  },
-  {
-    type: 'services',
-    match: [
-      'dienstleistung',
-      'portfolio',
-      'bieten wir',
-      'leistungen',
-      'angebot',
-      'services',
-      'beratung'
-    ],
-    actions: [
-      {
-        label: 'Alle Leistungen ansehen',
-        url: 'https://sawatzki-muehlenbruch.de/leistungen/',
-        primary: true
-      },
-      {
-        label: 'Kontakt aufnehmen',
-        url: 'https://sawatzki-muehlenbruch.de/kontakt/'
-      }
-    ]
-  },
-  {
-    type: 'mallcockpit',
-    match: [
-      'mallcockpit',
-      'mall cockpit',
-      'mall-cockpit',
-      'center management',
-      'centermanagement',
-      'shopping center'
-    ],
-    actions: [
-      {
-        label: 'MallCockpit kennenlernen',
-        url: 'https://sawatzki-muehlenbruch.de/mallcockpit/',
-        primary: true
-      }
-    ]
-  },
-  {
-    type: 'contact',
-    match: [
-      'kontakt',
-      'erreichen',
-      'anrufen',
-      'telefon',
-      'email',
-      'e-mail',
-      'termin',
-      'gespräch'
-    ],
-    actions: [
-      {
-        label: 'Kontakt aufnehmen',
-        url: 'https://sawatzki-muehlenbruch.de/kontakt/',
-        primary: true
-      }
-    ]
-  }
-]
+export function getResponseConfigs(baseConfig: BaseConfig): ResponseConfig[] {
+  return [
+    {
+      type: 'social-media',
+      priority: 100,
+      contentType: 'list',
+      match: [
+        'social media',
+        'facebook',
+        'instagram',
+        'linkedin',
+        'social-media-marketing',
+        'social media marketing',
+        'social-media-strategie',
+        'social media strategie'
+      ],
+      actions: [
+        {
+          label: 'Social Media Expertise',
+          url: `${baseConfig.domain}${baseConfig.defaultServicesUrl}social-media/`,
+          primary: true
+        },
+        {
+          label: 'Beratungsgespräch vereinbaren',
+          url: `${baseConfig.domain}${baseConfig.defaultContactUrl}`
+        }
+      ]
+    },
+    {
+      type: 'services',
+      match: [
+        'dienstleistung',
+        'portfolio',
+        'bieten wir',
+        'leistungen',
+        'angebot',
+        'services',
+        'beratung'
+      ],
+      actions: [
+        {
+          label: 'Alle Leistungen ansehen',
+          url: `${baseConfig.domain}${baseConfig.defaultServicesUrl}`,
+          primary: true
+        },
+        {
+          label: 'Kontakt aufnehmen',
+          url: `${baseConfig.domain}${baseConfig.defaultContactUrl}`
+        }
+      ]
+    },
+    {
+      type: 'contact',
+      match: [
+        'kontakt',
+        'erreichen',
+        'anrufen',
+        'telefon',
+        'email',
+        'e-mail',
+        'termin',
+        'gespräch'
+      ],
+      actions: [
+        {
+          label: 'Kontakt aufnehmen',
+          url: `${baseConfig.domain}${baseConfig.defaultContactUrl}`,
+          primary: true
+        }
+      ]
+    }
+  ]
+}
 
 // Helper-Funktion zum Erkennen des Antworttyps mit verbesserter Logik
-export const getResponseConfig = (text: string): ResponseConfig => {
+export const getResponseConfig = (text: string, baseConfig: BaseConfig): ResponseConfig => {
   const lowerText = text.toLowerCase()
   
+  // Hole die konfigurierten Antworttypen mit den richtigen URLs
+  const configs = getResponseConfigs(baseConfig)
+  
   // Sortiere Configs nach Priorität
-  const sortedConfigs = [...responseConfigs].sort((a, b) => 
+  const sortedConfigs = [...configs].sort((a, b) => 
     (b.priority || 0) - (a.priority || 0)
   )
 
@@ -172,6 +158,7 @@ export const createResponseConfig = (params: {
   additionalUrls?: Array<{ url: string, label: string }>
   contentType?: string
   priority?: number
+  baseConfig?: BaseConfig
 }): ResponseConfig => {
   return {
     type: params.type,
@@ -183,12 +170,12 @@ export const createResponseConfig = (params: {
         label: params.mainLabel,
         url: params.mainUrl.startsWith('http') 
           ? params.mainUrl 
-          : `${BASE_CONFIG.domain}${params.mainUrl}`,
+          : `${params.baseConfig?.domain || ''}${params.mainUrl}`,
         primary: true
       },
       ...(params.additionalUrls || []).map(({ url, label }) => ({
         label,
-        url: url.startsWith('http') ? url : `${BASE_CONFIG.domain}${url}`,
+        url: url.startsWith('http') ? url : `${params.baseConfig?.domain || ''}${url}`,
         primary: false
       }))
     ]

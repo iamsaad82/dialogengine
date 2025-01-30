@@ -21,6 +21,12 @@ export async function getTemplate(id: string): Promise<Template | null> {
 
 export async function updateTemplateBot(templateId: string, bot: ParsedBot): Promise<any> {
   try {
+    // Stelle sicher, dass die templateId gesetzt ist
+    const botWithTemplateId = {
+      ...bot,
+      templateId
+    };
+
     // Erstelle absolute URL für den API-Endpunkt
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const apiUrl = `${baseUrl}/api/templates/${templateId}/bot`
@@ -30,7 +36,7 @@ export async function updateTemplateBot(templateId: string, bot: ParsedBot): Pro
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(bot),
+      body: JSON.stringify(botWithTemplateId),
     });
 
     if (!response.ok) {
