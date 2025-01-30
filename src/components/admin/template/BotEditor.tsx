@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ParsedBot, Example, ResponseType, ExampleMetadataSchema } from "@/lib/schemas/template"
+import { ParsedBot, Example, ResponseType, ExampleMetadata } from "@/lib/types/template"
 import { Trash2, Plus, Eye, AlertCircle, Loader2, InfoIcon, CheckCircle, RefreshCw, Save } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { BotResponsePreview } from '@/components/preview/BotResponsePreview'
@@ -16,9 +16,9 @@ import { cn } from '@/lib/utils'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { z } from 'zod'
 
-type MetadataFieldType = 'url' | 'text' | 'datetime-local'
+type MetadataFieldType = 'url' | 'text' | 'datetime-local' | 'checkbox'
 
-type ExampleMetadataKey = 'url' | 'image' | 'price' | 'date' | 'address' | 'buttonText' | 'videoUrl' | 'fileSize' | 'fileType' | 'relatedQuestions'
+type ExampleMetadataKey = keyof ExampleMetadata
 
 type MetadataField = {
   field: ExampleMetadataKey
@@ -194,11 +194,15 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
         url: '',
         image: '',
         date: '',
+        time: '',
+        sessions: '',
+        available: false,
+        title: '',
         address: '',
-        videoUrl: '',
         price: '',
-        fileSize: '',
         fileType: '',
+        fileSize: '',
+        videoUrl: '',
         relatedQuestions: ''
       }
     };
@@ -209,23 +213,39 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
     }));
   }
 
-  const updateExample = (index: number, field: keyof Example | ExampleMetadataKey, value: string) => {
+  const updateExample = (index: number, field: string, value: string | boolean) => {
     setLocalBot(prev => {
       const newExamples = [...prev.examples];
-      if (Object.keys(newExamples[index]?.metadata || {}).includes(field as string)) {
+      const example = newExamples[index];
+      
+      if (!example) return prev;
+
+      // Prüfen, ob es sich um ein Metadatenfeld handelt
+      const metadataFields = [
+        'title', 'time', 'sessions', 'available', 'buttonText', 'url', 
+        'address', 'date', 'image', 'videoUrl', 'price', 'fileSize', 
+        'fileType', 'relatedQuestions'
+      ];
+      
+      if (metadataFields.includes(field)) {
+        // Metadatenfeld aktualisieren
+        console.log('Updating metadata field:', field, 'with value:', value);
         newExamples[index] = {
-          ...newExamples[index],
+          ...example,
           metadata: {
-            ...newExamples[index].metadata,
+            ...example.metadata,
             [field]: value
           }
         };
       } else {
+        // Hauptfeld aktualisieren
+        console.log('Updating main field:', field, 'with value:', value);
         newExamples[index] = {
-          ...newExamples[index],
+          ...example,
           [field]: value
         };
       }
+
       return {
         ...prev,
         examples: newExamples
@@ -260,11 +280,14 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
         ] as MetadataField[];
       case 'event':
         return [
-          { field: 'date', label: 'Datum & Uhrzeit', type: 'datetime-local' },
-          { field: 'address', label: 'Veranstaltungsort', type: 'text' },
-          { field: 'url', label: 'Anmelde-URL', type: 'url' },
+          { field: 'title', label: 'Kurstitel', type: 'text' },
+          { field: 'address', label: 'Ort', type: 'text' },
+          { field: 'date', label: 'Startdatum (z.B. 30.04.2025)', type: 'text' },
+          { field: 'time', label: 'Uhrzeit (z.B. 18:00 - 19:00 Uhr)', type: 'text' },
+          { field: 'sessions', label: 'Anzahl der Termine', type: 'text' },
+          { field: 'available', label: 'Plätze verfügbar', type: 'checkbox' },
           { field: 'buttonText', label: 'Button-Text', type: 'text' },
-          { field: 'image', label: 'Event-Bild (Optional)', type: 'url' }
+          { field: 'url', label: 'Anmelde-URL', type: 'url' }
         ] as MetadataField[];
       case 'location':
         return [
@@ -274,8 +297,10 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
         ] as MetadataField[];
       case 'video':
         return [
+          { field: 'title', label: 'Video-Titel', type: 'text' },
           { field: 'videoUrl', label: 'Video-URL', type: 'url' },
-          { field: 'image', label: 'Vorschaubild', type: 'url' }
+          { field: 'image', label: 'Vorschaubild-URL', type: 'url' },
+          { field: 'buttonText', label: 'Button-Text', type: 'text' }
         ] as MetadataField[];
       case 'link':
         return [
@@ -354,7 +379,14 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
       ...localBot,
       [field]: value
     }
+    
+    // Wenn der Bot-Typ auf 'flowise' gesetzt wird, setze auch die templateId
+    if (field === 'type' && value === 'flowise') {
+      updatedBot.templateId = templateId
+    }
+    
     setLocalBot(updatedBot)
+    onChange(updatedBot)
   }
 
   return (
@@ -473,23 +505,36 @@ export function BotEditor({ templateId, bot, onChange }: BotEditorProps) {
                     </div>
                   </div>
 
-                  {getMetadataFields(example.type).length > 0 && (
-                    <div className="space-y-4 pt-4 border-t">
-                      <Label>Zusätzliche Informationen</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        {getMetadataFields(example.type).map(({ field, label, type }) => (
-                          <div key={field}>
-                            <Label>{label}</Label>
-                            <Input
-                              type={type}
-                              value={example.metadata?.[field] || ''}
-                              onChange={(e) => updateExample(index, field, e.target.value)}
-                            />
-                          </div>
-                        ))}
-                      </div>
+                  {getMetadataFields(example.type).map((field) => (
+                    <div key={field.field} className="space-y-2">
+                      <Label htmlFor={`${index}-${field.field}`}>{field.label}</Label>
+                      {field.type === 'checkbox' ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`${index}-${field.field}`}
+                            checked={Boolean(example.metadata[field.field])}
+                            onChange={(e) => {
+                              console.log('Checkbox changed:', e.target.checked);
+                              updateExample(index, field.field, e.target.checked);
+                            }}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          id={`${index}-${field.field}`}
+                          type={field.type}
+                          value={String(example.metadata[field.field] || '')}
+                          onChange={(e) => {
+                            console.log('Input changed:', field.field, e.target.value);
+                            updateExample(index, field.field, e.target.value);
+                          }}
+                          placeholder={`${field.label} eingeben`}
+                        />
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             ))}

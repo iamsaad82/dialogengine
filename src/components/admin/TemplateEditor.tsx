@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch"
 import { BotEditor } from './template/BotEditor'
 import { BrandingEditor } from './template/BrandingEditor'
 import { ContentEditor } from './template/ContentEditor'
+import { MetadataEditor } from './template/MetadataEditor'
+import { AnalyticsEditor } from './template/AnalyticsEditor'
 import { toast } from 'sonner'
 
 type TemplateEditorProps = {
@@ -70,7 +72,10 @@ const defaultBot: ParsedBot = {
 
 const defaultMeta: ParsedMeta = {
   title: '',
-  description: ''
+  description: '',
+  domain: '',
+  contactUrl: '/kontakt',
+  servicesUrl: '/leistungen'
 }
 
 export default function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
@@ -200,6 +205,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
               <TabsTrigger value="branding">Branding</TabsTrigger>
               <TabsTrigger value="bot">Bot</TabsTrigger>
               <TabsTrigger value="meta">Meta</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
           </div>
 
@@ -239,38 +245,17 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
             </TabsContent>
 
             <TabsContent value="meta">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="metaTitle">Meta Title</Label>
-                  <Input
-                    id="metaTitle"
-                    value={(currentTemplate.jsonMeta as ParsedMeta).title}
-                    onChange={(e) => setCurrentTemplate({
-                      ...currentTemplate,
-                      jsonMeta: {
-                        ...(currentTemplate.jsonMeta as ParsedMeta),
-                        title: e.target.value
-                      }
-                    })}
-                    maxLength={60}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="metaDescription">Meta Description</Label>
-                  <Input
-                    id="metaDescription"
-                    value={(currentTemplate.jsonMeta as ParsedMeta).description}
-                    onChange={(e) => setCurrentTemplate({
-                      ...currentTemplate,
-                      jsonMeta: {
-                        ...(currentTemplate.jsonMeta as ParsedMeta),
-                        description: e.target.value
-                      }
-                    })}
-                    maxLength={160}
-                  />
-                </div>
-              </div>
+              <MetadataEditor
+                metadata={currentTemplate.jsonMeta as ParsedMeta}
+                onChange={(meta) => setCurrentTemplate({
+                  ...currentTemplate,
+                  jsonMeta: meta
+                })}
+              />
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <AnalyticsEditor templateId={currentTemplate.id} />
             </TabsContent>
           </div>
         </Tabs>

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, ReactElement } from 'react'
 import { Button } from "@/components/ui/button"
-import { Bot, Send, User, ArrowRight, ArrowLeft, ExternalLink, Download, MessageCircle, MessageSquareIcon } from "lucide-react"
+import { Bot, Send, User, ArrowRight, ArrowLeft, ExternalLink, Download, MessageCircle, MessageSquareIcon, CalendarIcon, MapPinIcon, FileIcon, Clock, Calendar } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { getResponseConfig } from '@/config/responseConfig'
 import TypingIndicator from './TypingIndicator'
@@ -12,7 +12,6 @@ import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
-import { CalendarIcon, MapPinIcon, FileIcon } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -102,6 +101,41 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
       return partialMatch;
     };
 
+    // Neue Funktion für Analytics Logging
+    const logChatInteraction = async (question: string, wasAnswered: boolean, answer?: string, matchedExampleId?: string) => {
+      try {
+        if (!template?.id) {
+          console.error('Template ID fehlt');
+          return;
+        }
+
+        const response = await fetch('/api/analytics/log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            timestamp: new Date(),
+            question,
+            answer,
+            wasAnswered,
+            matchedExampleId,
+            templateId: template.id,
+            sessionId: Math.random().toString(36).substring(7), // Einfache Session-ID
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Analytics logging failed:', errorData);
+          return;
+        }
+      } catch (error) {
+        console.error('Analytics logging failed:', error);
+        // Fehler beim Logging sollte den Chat nicht beeinträchtigen
+      }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
       if (!input.trim()) return
@@ -119,11 +153,17 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
           setIsTyping(false)
 
           if (example) {
+            // Erfolgreiche Antwort loggen
+            await logChatInteraction(userMessage, true, example.answer, example.id)
+            
             setMessages(prev => [...prev, {
               role: 'assistant',
               content: processResponse(example.answer, example.type, example.metadata)
             }])
           } else {
+            // Nicht beantwortete Frage loggen
+            await logChatInteraction(userMessage, false)
+            
             // Zeige verfügbare Beispielfragen an
             const availableExamples = bot.examples
               .slice(0, 3)
@@ -161,7 +201,8 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
                   role: msg.role,
                   content: typeof msg.content === 'string' ? msg.content : 'Complex content'
                 })),
-                flowiseId: bot.flowiseId
+                flowiseId: bot.flowiseId,
+                templateId: template.id
               })
             });
 
@@ -177,6 +218,9 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
             setIsTyping(false);
             
             if (data.text || data.answer) {
+              // Log für Flowise-Antworten
+              await logChatInteraction(userMessage, true, data.text || data.answer, 'flowise');
+              
               setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: processResponse(data.text || data.answer, data.type || 'info', data.metadata || {})
@@ -297,6 +341,16 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
         case 'service':
           return (
             <div className="space-y-3">
+              {metadata?.image && (
+                <div className="relative h-40 -mx-4 first:mt-0">
+                  <Image 
+                    src={metadata.image} 
+                    alt="Service Bild"
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                </div>
+              )}
               {formatText(response)}
               {metadata?.url && (
                 <Button 
@@ -348,17 +402,46 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
           return (
             <div className="space-y-3">
               {formatText(response)}
-              <div className="space-y-1.5">
-                {metadata?.date && (
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
-                    {format(new Date(metadata.date), 'PPP', { locale: de })}
+              <div className="space-y-1.5 bg-muted/30 rounded-lg p-3">
+                {metadata?.title && (
+                  <div className="flex items-center text-sm font-medium">
+                    <span>{metadata.title}</span>
                   </div>
                 )}
                 {metadata?.address && (
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPinIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
                     {metadata.address}
+                  </div>
+                )}
+                {metadata?.date && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                    {metadata.date}
+                  </div>
+                )}
+                {metadata?.time && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="mr-2 h-3.5 w-3.5 shrink-0" />
+                    {metadata.time}
+                  </div>
+                )}
+                {metadata?.sessions && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Calendar className="mr-2 h-3.5 w-3.5 shrink-0" />
+                    {metadata.sessions} Termine
+                  </div>
+                )}
+                {metadata?.hasOwnProperty('available') && (
+                  <div className="flex items-center text-xs mt-2">
+                    <div className={cn(
+                      "px-2 py-1 rounded-full",
+                      metadata.available 
+                        ? "bg-green-100 text-green-700" 
+                        : "bg-red-100 text-red-700"
+                    )}>
+                      {metadata.available ? "Plätze verfügbar" : "Ausgebucht"}
+                    </div>
                   </div>
                 )}
               </div>
@@ -474,6 +557,158 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
             </div>
           )
 
+        case 'location':
+          return (
+            <div className="space-y-3">
+              {formatText(response)}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="inline-flex justify-between bg-primary/5 hover:bg-primary/10 text-xs h-8 px-4"
+                onClick={async () => {
+                  // Standortabfrage-Dialog
+                  setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: (
+                      <div className="space-y-3">
+                        <p className="text-[15px] leading-relaxed">
+                          Um Ihnen die nächstgelegene Geschäftsstelle zu zeigen, benötige ich kurz Ihren Standort. 
+                          Diese Information wird nur für diese eine Anfrage verwendet und nicht gespeichert.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="bg-primary/10 hover:bg-primary/20"
+                            onClick={async () => {
+                              // Standortbestimmungs-Animation
+                              setMessages(prev => [...prev, {
+                                role: 'assistant',
+                                content: (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-[15px] text-primary animate-pulse">
+                                      <MapPinIcon className="h-5 w-5 animate-bounce" />
+                                      <span>Bestimme Ihren Standort...</span>
+                                    </div>
+                                  </div>
+                                )
+                              }]);
+
+                              // Verzögerung für die Animation
+                              await new Promise(resolve => setTimeout(resolve, 2000));
+
+                              // Erfolgreiche "Standortbestimmung"
+                              setMessages(prev => {
+                                // Entferne die "Bestimme Standort" Nachricht
+                                const newMessages = prev.slice(0, -1);
+                                return [...newMessages, {
+                                  role: 'assistant',
+                                  content: (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-[15px]">
+                                          <div className="flex items-center gap-2 text-primary">
+                                            <MapPinIcon className="h-5 w-5" />
+                                            <span>Standort gefunden</span>
+                                          </div>
+                                          <span className="text-sm text-muted-foreground">•</span>
+                                          <button
+                                            onClick={() => {
+                                              setMessages(prev => [...prev, {
+                                                role: 'assistant',
+                                                content: (
+                                                  <motion.div 
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="text-[15px] text-muted-foreground"
+                                                  >
+                                                    Alles klar, ich habe Ihren Standort vergessen. Sie können jederzeit eine neue Suche starten.
+                                                  </motion.div>
+                                                )
+                                              }]);
+                                            }}
+                                            className="text-sm text-primary hover:underline"
+                                          >
+                                            Standort vergessen
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                      >
+                                        <p className="text-[15px] leading-relaxed">
+                                          Perfekt! Ich habe eine Geschäftsstelle in Ihrer Nähe gefunden:
+                                        </p>
+                                        <div className="bg-primary/5 rounded-lg p-4 border border-primary/10 mt-3">
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-primary/10 rounded-full">
+                                              <MapPinIcon className="h-5 w-5 text-primary" />
+                                            </div>
+                                            <div>
+                                              <div className="font-medium">AOK Geschäftsstelle</div>
+                                              <div className="text-sm text-muted-foreground">{metadata.address}</div>
+                                            </div>
+                                          </div>
+                                          {metadata?.time && (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                                              <Clock className="h-4 w-4" />
+                                              <span>{metadata.time}</span>
+                                            </div>
+                                          )}
+                                          {metadata?.url && (
+                                            <Button 
+                                              variant="secondary"
+                                              size="sm"
+                                              className="w-full mt-3 bg-white"
+                                              asChild
+                                            >
+                                              <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                                                <MapPinIcon className="h-4 w-4 mr-2" />
+                                                {metadata.buttonText || 'Route anzeigen'}
+                                              </a>
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    </div>
+                                  )
+                                }]
+                              });
+                            }}
+                          >
+                            <MapPinIcon className="h-4 w-4 mr-2" />
+                            Standort freigeben
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setMessages(prev => [...prev, {
+                                role: 'assistant',
+                                content: processResponse(
+                                  "Kein Problem! Sie können auch direkt auf unserer Website nach Geschäftsstellen suchen.",
+                                  'info'
+                                )
+                              }]);
+                            }}
+                          >
+                            Nicht jetzt
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  }]);
+                }}
+              >
+                <MapPinIcon className="mr-2 h-3.5 w-3.5" />
+                Nächste Geschäftsstelle finden
+              </Button>
+            </div>
+          )
+
         default:
           return formatText(response)
       }
@@ -484,8 +719,8 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
       
       return (
         <div className={cn(
-          "flex items-start gap-3 max-w-3xl mx-auto",
-          isUser ? "justify-end" : "justify-start"
+            "flex items-start gap-3 max-w-3xl mx-auto",
+            isUser ? "justify-end" : "justify-start"
         )}>
           {!isUser && (
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
@@ -588,70 +823,70 @@ Sie können auch den klassischen Modus nutzen, um alle Inhalte der Website zu du
             </div>
           </div>
 
-          {/* Zentriertes initiales Eingabefeld */}
-          <div className="flex-1 flex items-start justify-center px-4 pt-16">
-            <motion.form 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              onSubmit={handleSubmit} 
-              className="relative w-full max-w-4xl"
-            >
-              <div className={cn(
-                "absolute inset-0 rounded-3xl blur-lg transition-all duration-500",
-                isFocused ? "opacity-70 scale-105" : "opacity-0 scale-100"
-              )} style={{ 
-                background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}20, ${branding?.secondaryColor || branding?.primaryColor || '#004730'}20)` 
-              }} />
-              
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r rounded-3xl" 
-                  style={{ 
-                    backgroundImage: `linear-gradient(to right, ${branding?.primaryColor || 'var(--primary)'}0A, ${branding?.secondaryColor || branding?.primaryColor || 'var(--primary)'}0A)`
-                  }} 
-                />
-                <div className={`absolute h-8 w-[2px] top-1/2 -mt-4 transition-all duration-200 left-8 ${
-                  input ? 'opacity-0' : 'opacity-100'
-                } ${
-                  isFocused ? 'animate-pulse' : ''
-                }`} 
-                  style={{ 
-                    backgroundColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#cbd5e1'
-                  }} 
-                />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  placeholder="Was möchten Sie wissen?"
-                  className="w-full pl-8 pr-24 py-9 text-lg text-slate-700 bg-white backdrop-blur-sm border-2 rounded-3xl shadow-lg transition-all duration-300 outline-none placeholder:text-slate-400"
-                  style={{ 
-                    caretColor: branding?.primaryColor || 'var(--primary)',
-                    borderColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#e2e8f0'
-                  }}
-                  disabled={isTyping}
-                />
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl h-14 px-6"
-                  style={{ 
-                    background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}, ${branding?.secondaryColor || branding?.primaryColor || '#004730'})` 
-                  }}
-                  disabled={!input.trim() || isTyping}
-                >
-                  <Send className="h-5 w-5 sm:mr-2.5" />
-                  <span className="hidden sm:inline text-base">Fragen</span>
-                </Button>
-              </div>
-            </motion.form>
+            {/* Zentriertes initiales Eingabefeld */}
+            <div className="flex-1 flex items-start justify-center px-4 pt-16">
+              <motion.form 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                onSubmit={handleSubmit} 
+                className="relative w-full max-w-4xl"
+              >
+                <div className={cn(
+                  "absolute inset-0 rounded-3xl blur-lg transition-all duration-500",
+                  isFocused ? "opacity-70 scale-105" : "opacity-0 scale-100"
+                )} style={{ 
+                  background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}20, ${branding?.secondaryColor || branding?.primaryColor || '#004730'}20)` 
+                }} />
+                
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r rounded-3xl" 
+                    style={{ 
+                      backgroundImage: `linear-gradient(to right, ${branding?.primaryColor || 'var(--primary)'}0A, ${branding?.secondaryColor || branding?.primaryColor || 'var(--primary)'}0A)`
+                    }} 
+                  />
+                  <div className={`absolute h-8 w-[2px] top-1/2 -mt-4 transition-all duration-200 left-8 ${
+                    input ? 'opacity-0' : 'opacity-100'
+                  } ${
+                    isFocused ? 'animate-pulse' : ''
+                  }`} 
+                    style={{ 
+                      backgroundColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#cbd5e1'
+                    }} 
+                  />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    placeholder="Was möchten Sie wissen?"
+                    className="w-full pl-8 pr-24 py-9 text-lg text-slate-700 bg-white backdrop-blur-sm border-2 rounded-3xl shadow-lg transition-all duration-300 outline-none placeholder:text-slate-400"
+                    style={{ 
+                      caretColor: branding?.primaryColor || 'var(--primary)',
+                      borderColor: isFocused ? branding?.primaryColor || 'var(--primary)' : '#e2e8f0'
+                    }}
+                    disabled={isTyping}
+                  />
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl h-14 px-6"
+                    style={{ 
+                      background: `linear-gradient(to right, ${branding?.primaryColor || '#005e3f'}, ${branding?.secondaryColor || branding?.primaryColor || '#004730'})` 
+                    }}
+                    disabled={!input.trim() || isTyping}
+                  >
+                    <Send className="h-5 w-5 sm:mr-2.5" />
+                    <span className="hidden sm:inline text-base">Fragen</span>
+                  </Button>
+                </div>
+              </motion.form>
+            </div>
           </div>
-        </div>
-      )
-    }
+        )
+      }
 
     return (
       <div ref={ref} className="fixed inset-0 flex flex-col bg-background pt-16">

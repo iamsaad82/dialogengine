@@ -112,7 +112,14 @@ export function ContentEditor({ content: initialContent, onChange }: ContentEdit
   };
 
   const handleContactChange = (field: string, value: string) => {
-    handleLocalChange(field as keyof ParsedContent, value);
+    setLocalContent(prev => ({
+      ...prev,
+      contact: {
+        ...prev.contact,
+        [field]: value
+      }
+    }));
+    setHasChanges(true);
   };
 
   useEffect(() => {
