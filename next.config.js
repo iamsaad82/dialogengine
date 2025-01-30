@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['dialog-engine.vercel.app'],
+    domains: ['dialog-engine.vercel.app', 'localhost', '127.0.0.1'],
     unoptimized: true
   },
   typescript: {
