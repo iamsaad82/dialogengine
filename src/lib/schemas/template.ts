@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // Basic types
 export const iconTypeSchema = z.enum(['zap', 'clock', 'brain', 'blocks'])
-export const templateTypeSchema = z.enum(['NEUTRAL', 'INDUSTRY', 'CUSTOM'])
+export const templateTypeSchema = z.enum(['NEUTRAL', 'CUSTOM'])
 export const responseTypeSchema = z.enum([
   'info',
   'service',
@@ -125,79 +125,72 @@ export const exampleSchema = z.object({
 export const contentSchema = z.object({
   hero: z.object({
     title: z.string(),
-    description: z.string(),
-    image: z.string(),
-    altText: z.string()
-  }).optional(),
+    subtitle: z.string(),
+    description: z.string()
+  }),
   showcase: z.object({
-    title: z.string(),
-    description: z.string(),
     image: z.string(),
     altText: z.string(),
-    context: z.string(),
+    context: z.object({
+      title: z.string(),
+      description: z.string()
+    }),
     cta: z.object({
-      text: z.string(),
-      url: z.string()
+      title: z.string(),
+      question: z.string()
     })
-  }).optional(),
+  }),
   features: z.array(
     z.object({
+      icon: z.string(),
       title: z.string(),
-      description: z.string(),
-      icon: z.string()
+      description: z.string()
     })
-  ).optional(),
+  ),
   contact: z.object({
     title: z.string(),
     description: z.string(),
     email: z.string(),
     buttonText: z.string()
-  }).optional(),
+  }),
   dialog: z.object({
     title: z.string(),
     description: z.string()
-  }).optional()
+  })
 })
 
 // Branding schema
 export const brandingSchema = z.object({
-  logo: z.string().url(),
-  primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i),
-  secondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i)
+  logo: z.string(),
+  primaryColor: z.string(),
+  secondaryColor: z.string(),
+  backgroundColor: z.string(),
+  textColor: z.string(),
+  font: z.string()
 })
 
 // Smart Search schema
 export const smartSearchSchema = z.object({
   provider: z.literal('openai'),
-  apiKey: z.string().optional(),
   urls: z.array(z.string()),
   excludePatterns: z.array(z.string()),
-  chunkSize: z.number().min(100).max(1000),
+  chunkSize: z.number().min(100).max(8000),
   temperature: z.number().min(0).max(1),
-  indexName: z.string().optional(),
-  apiEndpoint: z.string().optional(),
   reindexInterval: z.number().min(1).max(168),
-  maxTokensPerRequest: z.number().min(100).max(2000),
+  maxTokensPerRequest: z.number().min(100).max(4000),
+  maxPages: z.number().min(1).max(1000),
   useCache: z.boolean(),
-  similarityThreshold: z.number().min(0).max(1)
-}).partial().extend({
-  provider: z.literal('openai'),
-  urls: z.array(z.string()).default([]),
-  excludePatterns: z.array(z.string()).default(['/admin/*', '/wp-*', '*.pdf', '/wp-json/*', '/api/*']),
-  chunkSize: z.number().min(100).max(1000).default(300),
-  temperature: z.number().min(0).max(1).default(0.1),
-  reindexInterval: z.number().min(1).max(168).default(24),
-  maxTokensPerRequest: z.number().min(100).max(2000).default(500),
-  useCache: z.boolean().default(true),
-  similarityThreshold: z.number().min(0).max(1).default(0.8)
+  similarityThreshold: z.number().min(0).max(1),
+  apiKey: z.string(),
+  indexName: z.string(),
+  apiEndpoint: z.string()
 })
 
 // Bot configuration schema
 export const botSchema = z.object({
   type: z.enum(['examples', 'flowise', 'smart-search']),
-  examples: z.array(exampleSchema).default([]),
+  examples: z.array(exampleSchema),
   flowiseId: z.string().optional(),
-  templateId: z.string().optional(),
   smartSearch: smartSearchSchema.optional()
 })
 
@@ -280,4 +273,58 @@ export type ParsedContent = {
 }
 export type ParsedBranding = z.infer<typeof brandingSchema>
 export type ParsedBot = z.infer<typeof botSchema>
-export type ParsedMeta = z.infer<typeof metaSchema> 
+export type ParsedMeta = z.infer<typeof metaSchema>
+
+export const schemaFieldTypeSchema = z.enum([
+  'string',
+  'number',
+  'boolean',
+  'date',
+  'array',
+  'object'
+])
+
+type SchemaFieldType = z.infer<typeof schemaFieldTypeSchema>
+
+export type SchemaField = {
+  name: string
+  type: SchemaFieldType
+  description?: string
+  required?: boolean
+  isArray?: boolean
+  properties?: SchemaField[]
+  validation?: {
+    min?: number
+    max?: number
+    pattern?: string
+    enum?: string[]
+  }
+}
+
+export const schemaFieldSchema: z.ZodType<SchemaField> = z.lazy(() => z.object({
+  name: z.string(),
+  type: schemaFieldTypeSchema,
+  description: z.string().optional(),
+  required: z.boolean().default(false),
+  isArray: z.boolean().default(false),
+  properties: z.array(z.lazy(() => schemaFieldSchema)).optional(),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    pattern: z.string().optional(),
+    enum: z.array(z.string()).optional()
+  }).optional()
+}).strict());
+
+export const extractionSchemaSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  name: z.string(),
+  description: z.string(),
+  version: z.number().default(1),
+  fields: z.array(schemaFieldSchema),
+  createdAt: z.date(),
+  updatedAt: z.date()
+})
+
+export type ExtractionSchema = z.infer<typeof extractionSchemaSchema> 

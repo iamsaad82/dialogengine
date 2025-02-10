@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getResponseConfig } from '@/config/responseConfig'
+import { SmartSearchHandler } from '@/lib/services/smartSearch'
+import { z } from 'zod'
 
 interface FlowiseResponse {
   text: string
@@ -127,51 +129,59 @@ async function formatResponse(flowiseResponse: FlowiseResponse, templateId: stri
   };
 }
 
+const chatRequestSchema = z.object({
+  question: z.string().min(1),
+  templateId: z.string(),
+  sessionId: z.string(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string()
+  })).optional()
+})
+
+// Überprüfe Umgebungsvariablen beim Start
+if (!process.env.OPENAI_API_KEY || !process.env.PINECONE_API_KEY) {
+  throw new Error('Erforderliche Umgebungsvariablen fehlen')
+}
+
+// Typsichere Umgebungsvariablen
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const PINECONE_API_KEY = process.env.PINECONE_API_KEY
+const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT || 'europe-west4'
+const PINECONE_HOST = process.env.PINECONE_HOST || ''
+const PINECONE_INDEX = process.env.PINECONE_INDEX || 'dialog-engine'
+const REDIS_URL = process.env.REDIS_URL
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { question, history, flowiseId, templateId } = body
-
-    if (!templateId) {
-      return NextResponse.json({ error: 'Template ID fehlt' }, { status: 400 })
+    const result = chatRequestSchema.safeParse(body)
+    
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Ungültige Anfrage: ' + result.error.message },
+        { status: 400 }
+      )
     }
 
-    // Hole die Flowise-Konfiguration
-    const flowiseConfig = await prisma.flowiseConfig.findFirst()
-    if (!flowiseConfig) {
-      return NextResponse.json({ error: 'Flowise nicht konfiguriert' }, { status: 400 })
-    }
+    const { question, templateId } = result.data
 
-    // Baue die Flowise-URL zusammen
-    const flowiseUrl = `${flowiseConfig.url}/api/v1/prediction/${flowiseId}`
-
-    // Sende Anfrage an Flowise
-    const response = await fetch(flowiseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(flowiseConfig.apiKey ? { 'Authorization': `Bearer ${flowiseConfig.apiKey}` } : {})
-      },
-      body: JSON.stringify({
-        question,
-        history
-      })
+    const searchHandler = new SmartSearchHandler({
+      openaiApiKey: OPENAI_API_KEY,
+      pineconeApiKey: PINECONE_API_KEY,
+      pineconeEnvironment: PINECONE_ENVIRONMENT,
+      pineconeHost: PINECONE_HOST,
+      pineconeIndex: PINECONE_INDEX,
+      redisUrl: REDIS_URL,
+      templateId
     })
 
-    if (!response.ok) {
-      throw new Error('Flowise-Anfrage fehlgeschlagen')
-    }
-
-    const flowiseResponse = await response.json()
-    
-    // Formatiere die Antwort mit Template-Kontext
-    const formattedResponse = await formatResponse(flowiseResponse, templateId)
-    
-    return NextResponse.json(formattedResponse)
+    const response = await searchHandler.handleQuery(question)
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Chat error:', error)
+    console.error('Fehler bei der Suche:', error)
     return NextResponse.json(
-      { error: 'Interner Server-Fehler' },
+      { error: 'Fehler bei der Suche' },
       { status: 500 }
     )
   }

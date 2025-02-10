@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Template } from '@/lib/types/template'
+import type { Template } from '@/lib/types/template'
 import TemplateEditor from './TemplateEditor'
 import { Button } from "@/components/ui/button"
 import {
@@ -16,17 +16,48 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import FlowiseConfig from './FlowiseConfig'
 import { useToast } from '@/components/ui/use-toast'
+import ContentTypeManager from './ContentTypeManager'
+import { useRouter } from 'next/navigation'
+import { PlusIcon } from '@radix-ui/react-icons'
+import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const defaultTemplate: Template = {
   id: '',
   name: 'Demo Template',
   type: 'NEUTRAL',
   active: true,
-  subdomain: '',
-  jsonContent: '',
-  jsonBranding: '',
-  jsonBot: '',
-  jsonMeta: '',
+  subdomain: null,
+  jsonContent: JSON.stringify({
+    hero: {
+      title: 'Willkommen zur Demo',
+      subtitle: 'Testen Sie unseren KI-Chatbot',
+      description: 'Eine leistungsstarke Lösung für Ihre Website'
+    },
+    dialog: {
+      title: 'Wie kann ich helfen?',
+      description: 'Ich beantworte gerne Ihre Fragen'
+    }
+  }),
+  jsonBranding: JSON.stringify({
+    logo: '',
+    primaryColor: '#4F46E5',
+    secondaryColor: '#7C3AED',
+    backgroundColor: '#FFFFFF',
+    textColor: '#000000',
+    font: 'Inter'
+  }),
+  jsonBot: JSON.stringify({
+    type: 'examples',
+    examples: []
+  }),
+  jsonMeta: JSON.stringify({
+    title: '',
+    description: '',
+    domain: '',
+    contactUrl: '/kontakt',
+    servicesUrl: '/leistungen'
+  }),
   createdAt: new Date(),
   updatedAt: new Date()
 }
@@ -42,9 +73,10 @@ const parseTemplate = (template: Template): Template => {
 }
 
 export default function TemplateManager() {
+  const router = useRouter()
   const [templates, setTemplates] = useState<Template[]>([])
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -175,9 +207,34 @@ export default function TemplateManager() {
     }
   }
 
+  const createTemplate = async () => {
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Neues Template',
+          description: 'Beschreibung des neuen Templates',
+        }),
+      })
+      const newTemplate = await response.json()
+      router.push(`/admin/templates/${newTemplate.id}/content`)
+    } catch (error) {
+      console.error('Fehler beim Erstellen des Templates:', error)
+    }
+  }
+
   // Render loading state only when actually loading and no templates are available
   if (loading && templates.length === 0) {
-    return <div>Laden...</div>
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    )
   }
 
   if (error) {
@@ -231,92 +288,43 @@ export default function TemplateManager() {
 
   // Template-Übersicht
   return (
-    <div className="container mx-auto py-6">
-      <Tabs defaultValue="templates" className="w-full">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <TabsList>
-              <TabsTrigger value="templates">Templates</TabsTrigger>
-              <TabsTrigger value="flowise">Flowise</TabsTrigger>
-            </TabsList>
-          </div>
-          <Button onClick={() => setEditingTemplate(defaultTemplate)}>
-            Template erstellen
-          </Button>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={createTemplate}>
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Neues Template
+        </Button>
+      </div>
+
+      {templates.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          Keine Templates vorhanden. Erstellen Sie ein neues Template, um loszulegen.
         </div>
-
-        <TabsContent value="templates">
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {templates.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-gray-500">Keine Templates vorhanden</p>
+      ) : (
+        <div className="grid gap-4">
+          {templates.map((template) => (
+            <Card
+              key={template.id}
+              className="p-4 cursor-pointer hover:bg-gray-50"
+              onClick={() => router.push(`/admin/templates/${template.id}/content`)}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-medium">{template.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {template.type === 'NEUTRAL' ? 'Neutrales Template' : 
+                     template.type === 'INDUSTRY' ? 'Branchen-Template' : 
+                     'Individuelles Template'}
+                  </p>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Zuletzt bearbeitet: {new Date(template.updatedAt).toLocaleDateString('de-DE')}
+                </div>
               </div>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Typ
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Aktionen</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {templates.map((template) => (
-                    <tr key={template.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {template.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {template.type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          template.active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {template.active ? 'Aktiv' : 'Inaktiv'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Button
-                          variant="ghost"
-                          className="text-indigo-600 hover:text-indigo-900 mr-2"
-                          onClick={() => setEditingTemplate(template)}
-                        >
-                          Bearbeiten
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="text-red-600 hover:text-red-900"
-                          onClick={() => handleDelete(template.id)}
-                        >
-                          Löschen
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="flowise">
-          <div className="bg-white rounded-lg shadow p-6">
-            <FlowiseConfig />
-          </div>
-        </TabsContent>
-      </Tabs>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 } 

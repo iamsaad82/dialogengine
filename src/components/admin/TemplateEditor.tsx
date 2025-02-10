@@ -14,6 +14,8 @@ import { ContentEditor } from './template/ContentEditor'
 import { MetadataEditor } from './template/MetadataEditor'
 import { AnalyticsEditor } from './template/AnalyticsEditor'
 import { toast } from 'sonner'
+import { Loader2, Save } from 'lucide-react'
+import ContentTypeManager from './ContentTypeManager'
 
 type TemplateEditorProps = {
   template?: Template
@@ -61,7 +63,10 @@ const defaultContent: ParsedContent = {
 const defaultBranding: ParsedBranding = {
   logo: '',
   primaryColor: '#4F46E5',
-  secondaryColor: '#7C3AED'
+  secondaryColor: '#7C3AED',
+  backgroundColor: '#FFFFFF',
+  textColor: '#000000',
+  font: 'Inter'
 }
 
 const defaultBot: ParsedBot = {
@@ -128,20 +133,63 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
     console.log('Aktuelles Template:', currentTemplate)
   }, [currentTemplate])
 
+  const [hasChanges, setHasChanges] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
+    
+    if (!hasChanges) return
+    
     try {
+      setIsSubmitting(true)
       console.log('Template vor dem Speichern:', currentTemplate)
       await onSave(currentTemplate)
+      setHasChanges(false)
       toast.success('Template erfolgreich gespeichert')
     } catch (error) {
       console.error('Fehler beim Speichern:', error)
       toast.error('Fehler beim Speichern des Templates')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
+  const handleContentChange = (content: ParsedContent) => {
+    setCurrentTemplate({
+      ...currentTemplate,
+      jsonContent: content
+    })
+    setHasChanges(true)
+  }
+
+  const handleBrandingChange = (branding: ParsedBranding) => {
+    setCurrentTemplate({
+      ...currentTemplate,
+      jsonBranding: branding
+    })
+    setHasChanges(true)
+  }
+
+  const handleBotChange = async (bot: ParsedBot) => {
+    setCurrentTemplate({
+      ...currentTemplate,
+      jsonBot: bot
+    })
+    setHasChanges(true)
+  }
+
+  const handleMetaChange = (meta: ParsedMeta) => {
+    setCurrentTemplate({
+      ...currentTemplate,
+      jsonMeta: meta
+    })
+    setHasChanges(true)
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 p-8">
+    <div className="space-y-8 p-8">
       {/* Basic Info */}
       <div className="space-y-6 bg-white rounded-lg border p-6">
         <div>
@@ -200,12 +248,12 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
       <div className="bg-white rounded-lg border">
         <Tabs defaultValue="content" className="w-full">
           <div className="border-b px-6 py-4">
-            <TabsList>
-              <TabsTrigger value="content">Inhalt</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 mb-8">
+              <TabsTrigger value="content">Inhalte</TabsTrigger>
               <TabsTrigger value="branding">Branding</TabsTrigger>
               <TabsTrigger value="bot">Bot</TabsTrigger>
               <TabsTrigger value="meta">Meta</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="content-types">Inhaltstypen</TabsTrigger>
             </TabsList>
           </div>
 
@@ -213,49 +261,42 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
             <TabsContent value="content">
               <ContentEditor
                 content={currentTemplate.jsonContent as ParsedContent}
-                onChange={(content) => {
-                  setCurrentTemplate({
-                    ...currentTemplate,
-                    jsonContent: content
-                  });
-                  toast.success('Inhalt gespeichert');
-                }}
+                onChange={handleContentChange}
               />
             </TabsContent>
 
             <TabsContent value="branding">
               <BrandingEditor
                 branding={currentTemplate.jsonBranding as ParsedBranding}
-                onChange={(branding) => setCurrentTemplate({
-                  ...currentTemplate,
-                  jsonBranding: branding
-                })}
+                onChange={handleBrandingChange}
               />
             </TabsContent>
 
             <TabsContent value="bot">
               <BotEditor
                 bot={currentTemplate.jsonBot as ParsedBot}
-                templateId={currentTemplate.id || ''}
-                onChange={(bot) => setCurrentTemplate({
-                  ...currentTemplate,
-                  jsonBot: bot
-                })}
+                onChange={handleBotChange}
+                templateId={currentTemplate.id}
               />
             </TabsContent>
 
             <TabsContent value="meta">
               <MetadataEditor
-                metadata={currentTemplate.jsonMeta as ParsedMeta}
-                onChange={(meta) => setCurrentTemplate({
-                  ...currentTemplate,
-                  jsonMeta: meta
-                })}
+                meta={currentTemplate.jsonMeta as ParsedMeta}
+                onChange={handleMetaChange}
               />
             </TabsContent>
 
-            <TabsContent value="analytics">
-              <AnalyticsEditor templateId={currentTemplate.id} />
+            <TabsContent value="content-types">
+              <div className="space-y-4">
+                {currentTemplate.id ? (
+                  <ContentTypeManager templateId={currentTemplate.id} />
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    Bitte speichern Sie das Template zuerst, um Inhaltstypen zu verwalten.
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </div>
         </Tabs>
@@ -266,10 +307,23 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
         <Button type="button" variant="outline" onClick={onCancel}>
           Abbrechen
         </Button>
-        <Button type="submit">
-          Speichern
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting || !hasChanges}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Speichern...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              {hasChanges ? "Änderungen speichern" : "Keine Änderungen"}
+            </>
+          )}
         </Button>
       </div>
-    </form>
+    </div>
   )
 } 

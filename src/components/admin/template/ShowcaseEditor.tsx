@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { validateUrl, validateRequired, getErrorMessage } from "@/lib/utils/validation"
 import { useState, useEffect } from "react"
-import { ImageUpload } from "@/components/ui/image-upload"
+import { ImageUploader } from '@/components/ui/upload'
 
 type ShowcaseSection = {
   image: string
@@ -146,7 +146,7 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
       <div className="space-y-4">
         <div>
           <Label>Bild</Label>
-          <ImageUpload
+          <ImageUploader
             id="showcase-image"
             label="Showcase Bild hochladen"
             value={showcase.image}

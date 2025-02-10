@@ -1,98 +1,72 @@
 'use client'
 
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ParsedMeta } from "@/lib/schemas/template"
+import { useState } from 'react'
+import { useToast } from '@/components/ui/use-toast'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { ParsedMeta } from '@/lib/types/template'
 
-type MetadataEditorProps = {
-  metadata: ParsedMeta
-  onChange: (metadata: ParsedMeta) => void
+interface MetadataEditorProps {
+  meta: ParsedMeta
+  onChange: (meta: ParsedMeta) => void
 }
 
-export function MetadataEditor({ metadata, onChange }: MetadataEditorProps) {
+export function MetadataEditor({ meta: initialMeta, onChange }: MetadataEditorProps) {
+  const [meta, setMeta] = useState<ParsedMeta>(initialMeta)
+  const { toast } = useToast()
+
   const handleChange = (field: keyof ParsedMeta, value: string) => {
-    onChange({
-      ...metadata,
-      [field]: value
-    })
+    const updatedMeta = { ...meta, [field]: value }
+    setMeta(updatedMeta)
+    onChange(updatedMeta)
   }
 
   return (
-    <div className="space-y-6">
-      {/* SEO Metadaten */}
-      <div>
-        <h4 className="font-medium mb-4">SEO Metadaten</h4>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">SEO Titel</Label>
-            <Input
-              id="title"
-              value={metadata.title}
-              onChange={(e) => handleChange('title', e.target.value)}
-              maxLength={60}
-              placeholder="SEO-optimierter Titel"
-            />
-            <p className="text-sm text-gray-500">
-              {metadata.title.length}/60 Zeichen
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Meta Beschreibung</Label>
-            <Input
-              id="description"
-              value={metadata.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              maxLength={160}
-              placeholder="SEO-optimierte Beschreibung"
-            />
-            <p className="text-sm text-gray-500">
-              {metadata.description.length}/160 Zeichen
-            </p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Titel</Label>
+        <Input
+          value={meta.title}
+          onChange={(e) => handleChange('title', e.target.value)}
+          placeholder="Geben Sie einen Titel ein"
+        />
       </div>
 
-      {/* URL Konfiguration */}
-      <div>
-        <h4 className="font-medium mb-4">URL Konfiguration</h4>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="domain">Domain</Label>
-            <Input
-              id="domain"
-              value={metadata.domain || ''}
-              onChange={(e) => handleChange('domain', e.target.value)}
-              placeholder="https://ihre-domain.de"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label>Beschreibung</Label>
+        <Textarea
+          value={meta.description}
+          onChange={(e) => handleChange('description', e.target.value)}
+          placeholder="Geben Sie eine Beschreibung ein"
+        />
+      </div>
 
-          <div>
-            <Label htmlFor="contactUrl">Kontakt URL</Label>
-            <Input
-              id="contactUrl"
-              value={metadata.contactUrl || ''}
-              onChange={(e) => handleChange('contactUrl', e.target.value)}
-              placeholder="/kontakt"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Relativer Pfad zur Kontaktseite (z.B. /kontakt)
-            </p>
-          </div>
+      <div className="space-y-2">
+        <Label>Domain</Label>
+        <Input
+          value={meta.domain || ''}
+          onChange={(e) => handleChange('domain', e.target.value)}
+          placeholder="example.com"
+        />
+      </div>
 
-          <div>
-            <Label htmlFor="servicesUrl">Services URL</Label>
-            <Input
-              id="servicesUrl"
-              value={metadata.servicesUrl || ''}
-              onChange={(e) => handleChange('servicesUrl', e.target.value)}
-              placeholder="/leistungen"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Relativer Pfad zur Leistungsseite (z.B. /leistungen)
-            </p>
-          </div>
-        </div>
+      <div className="space-y-2">
+        <Label>Kontakt-URL</Label>
+        <Input
+          value={meta.contactUrl || ''}
+          onChange={(e) => handleChange('contactUrl', e.target.value)}
+          placeholder="https://example.com/contact"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Services-URL</Label>
+        <Input
+          value={meta.servicesUrl || ''}
+          onChange={(e) => handleChange('servicesUrl', e.target.value)}
+          placeholder="https://example.com/services"
+        />
       </div>
     </div>
   )

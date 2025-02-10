@@ -35,4 +35,8 @@ next-env.d.ts
 
 # IDE
 .vscode/
-.idea/ 
+.idea/
+
+# development env files
+.env.development
+.env.*.local 

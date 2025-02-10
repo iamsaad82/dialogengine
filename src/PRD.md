@@ -94,19 +94,15 @@ interface Template {
       title: string;
       description: string;
     }>;
-    callToAction: {
-      title: string;
-      description: string;
-      primaryButton: {
-        text: string;
-        url: string;
-      };
-    };
     contact: {
       title: string;
       description: string;
       email: string;
       buttonText: string;
+    };
+    dialog: {
+      title: string;
+      description: string;
     };
   };
 
@@ -114,10 +110,13 @@ interface Template {
     logo: string;
     primaryColor: string;
     secondaryColor: string;
+    backgroundColor: string;
+    textColor: string;
+    font: string;
   };
 
   jsonBot: {
-    type: 'examples' | 'flowise';
+    type: 'examples' | 'flowise' | 'smart-search';
     examples?: Array<{
       question: string;
       answer: string;
@@ -128,17 +127,40 @@ interface Template {
         image?: string;
         price?: string;
         date?: string;
+        time?: string;
+        sessions?: string;
+        available?: boolean;
         address?: string;
         buttonText?: string;
         videoUrl?: string;
+        fileType?: string;
+        fileSize?: string;
+        relatedQuestions?: string[];
+        title?: string;
       };
     }>;
     flowiseId?: string;
+    smartSearch?: {
+      provider: 'openai';
+      urls: string[];
+      excludePatterns: string[];
+      chunkSize: number;
+      temperature: number;
+      reindexInterval: number;
+      maxTokensPerRequest: number;
+      maxPages: number;
+      useCache: boolean;
+      similarityThreshold: number;
+      apiKey: string;
+      indexName: string;
+      apiEndpoint: string;
+    };
   };
 
   jsonMeta: {
     title: string;
     description: string;
+    keywords: string[];
   };
 }
 ```
@@ -146,14 +168,14 @@ interface Template {
 ### 4.2 Response Types
 - info: Allgemeine Informationen
 - service: Dienstleistungen
+- product: Produktinformationen
+- event: Veranstaltungen
+- location: Standorte/Adressen
+- video: Video-Content
 - link: Weiterführende Links
 - contact: Kontaktinformationen
-- product: Produktinformationen
-- location: Standortinformationen
 - faq: Häufig gestellte Fragen
-- event: Veranstaltungen
-- download: Downloads
-- video: Video-Content
+- download: Download-Ressourcen
 
 ## 5. Komponenten-System
 
@@ -167,12 +189,17 @@ interface Template {
 - TypingIndicator: Animierte Lade-Anzeige
 
 ### 5.2 Admin-Komponenten
-- TemplateEditor: Template-Bearbeitung
-- TemplateManager: Template-Verwaltung
-- BotEditor: Bot-Konfiguration
-- BrandingEditor: Design-Anpassungen
+- TemplateManager: Template-Übersicht und CRUD
+- SettingsEditor: Grundeinstellungen
 - ContentEditor: Content-Management
-- FlowiseConfig: Flowise-Integration
+- BotEditor: Bot-Konfiguration
+  - ExamplesBot: Beispielantworten
+  - FlowiseBot: Flowise-Integration
+  - SmartSearchBot: KI-gestützte Suche
+- BrandingEditor: Design-Anpassungen
+- SchemaEditor: Schema-Definition
+- MetadataEditor: Meta-Informationen
+- AnalyticsEditor: Nutzungsstatistiken
 
 ## 6. Styling-System
 
@@ -248,12 +275,22 @@ interface Template {
 - Kontext-basierte Suche
 - Fallback-Antworten
 - Response-Type Handling
+- Metadaten für strukturierte Antworten
 
 ### 7.2 Flowise-Bot
-- API Integration
-- Error Handling
-- Response Parsing
-- History Management
+- Integration mit Flowise AI
+- Konfigurierbare Flows
+- API-Key Management
+- Response Rules
+
+### 7.3 Smart Search Bot
+- KI-gestützte Suche mit OpenAI
+- Vektorbasierte Ähnlichkeitssuche (Pinecone)
+- Automatisches Crawling von Websites
+- Intelligente Chunk-Extraktion
+- Cache-System für schnelle Antworten
+- Konfigurierbare Ausschlussmuster
+- Automatische Reindexierung
 
 ## 8. Sicherheit & Performance
 

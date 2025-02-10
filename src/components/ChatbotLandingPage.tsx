@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from '@/components/ui/switch';
 import { Features } from '@/components/Features';
 import { CallToActionBox } from '@/components/CallToActionBox';
-import DialogMode from '@/components/DialogMode';
+import DialogMode from './chat/DialogMode';
 import { Showcase } from '@/components/Showcase';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';

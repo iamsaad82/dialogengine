@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../prisma';
-import { Template, TemplateType } from '../../types/template';
+import { Template, TemplateType } from '../types/template';
 
 type PrismaTemplate = {
   id: string;
@@ -10,10 +10,10 @@ type PrismaTemplate = {
   type: string;
   active: boolean;
   subdomain: string | null;
-  content: Prisma.JsonValue;
-  branding: Prisma.JsonValue;
-  bot: Prisma.JsonValue;
-  meta: Prisma.JsonValue;
+  jsonContent: Prisma.JsonValue;
+  jsonBranding: Prisma.JsonValue;
+  jsonBot: Prisma.JsonValue;
+  jsonMeta: Prisma.JsonValue;
 };
 
 export const defaultTemplate: Template = {
@@ -21,7 +21,8 @@ export const defaultTemplate: Template = {
   name: 'Neutrale Version',
   type: 'NEUTRAL',
   active: true,
-  content: JSON.stringify({
+  subdomain: null,
+  jsonContent: JSON.stringify({
     hero: {
       title: 'Wir schalten Ihre Website',
       subtitle: 'in den Dialog-Modus',
@@ -49,52 +50,40 @@ export const defaultTemplate: Template = {
       {
         icon: 'brain',
         title: 'KI-gestützt',
-        description: 'Intelligent & lernfähig für präzise Antworten'
-      },
-      {
-        icon: 'blocks',
-        title: 'Einfache Integration',
-        description: 'Nahtlos in Ihre bestehende Website integriert'
-      }
-    ],
-    callToAction: {
-      title: 'Bereit für den Dialog?',
-      description: 'Starten Sie jetzt mit Dialog-AI und verwandeln Sie Ihre Website in eine interaktive Plattform.',
-      primaryButton: {
-        text: 'Jetzt Demo starten',
-        url: '/demo'
-      }
-    }
-  }),
-  branding: JSON.stringify({
-    logo: './logo.png',
-    primaryColor: '#4F46E5',
-    secondaryColor: '#7C3AED'
-  }),
-  bot: JSON.stringify({
-    type: 'examples',
-    examples: [
-      {
-        question: 'Was ist Dialog-AI?',
-        answer: 'Dialog-AI ist eine innovative Chatbot-Lösung, die Ihre Website in einen interaktiven Dialog verwandelt.',
-        context: 'Allgemeine Produktbeschreibung',
-        type: 'info'
+        description: 'Modernste KI-Technologie für präzise und relevante Antworten'
       }
     ]
   }),
-  meta: JSON.stringify({
-    title: 'Dialog-AI | Ihre Website im Dialog-Modus',
-    description: 'Verwandeln Sie Ihre Website in einen interaktiven Dialog. Mit Dialog-AI bieten Sie Ihren Besuchern eine neue Art der Informationssuche.'
-  })
+  jsonBranding: JSON.stringify({
+    logo: '',
+    primaryColor: '#4F46E5',
+    secondaryColor: '#7C3AED',
+    backgroundColor: '#FFFFFF',
+    textColor: '#000000',
+    font: 'Inter'
+  }),
+  jsonBot: JSON.stringify({
+    type: 'examples',
+    examples: []
+  }),
+  jsonMeta: JSON.stringify({
+    title: '',
+    description: '',
+    domain: '',
+    contactUrl: '/kontakt',
+    servicesUrl: '/leistungen'
+  }),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 export const smgTemplate: Template = {
   id: 'smg',
   name: 'Social Media Marketing Center',
-  type: 'INDUSTRY',
+  type: 'CUSTOM',
   active: true,
   subdomain: 'smg',
-  content: JSON.stringify({
+  jsonContent: JSON.stringify({
     hero: {
       title: 'Unsere Leistungen für',
       subtitle: 'Ihr Center.',
@@ -129,22 +118,14 @@ export const smgTemplate: Template = {
         title: 'Suchmaschinenoptimierung',
         description: 'Optimale Sichtbarkeit in den Suchergebnissen'
       }
-    ],
-    callToAction: {
-      title: 'Ihr Social Media Marketing auf dem nächsten Level',
-      description: 'Steigern Sie die Interaktion mit Ihren Kunden durch intelligente Dialoge.',
-      primaryButton: {
-        text: 'Beratungsgespräch vereinbaren',
-        url: '/kontakt'
-      }
-    }
+    ]
   }),
-  branding: JSON.stringify({
+  jsonBranding: JSON.stringify({
     logo: './logo.png',
     primaryColor: '#DC2626',
     secondaryColor: '#4F46E5'
   }),
-  bot: JSON.stringify({
+  jsonBot: JSON.stringify({
     type: 'examples',
     examples: [
       {
@@ -155,19 +136,21 @@ export const smgTemplate: Template = {
       }
     ]
   }),
-  meta: JSON.stringify({
+  jsonMeta: JSON.stringify({
     title: 'Social Media Marketing Center | Dialog-AI',
     description: 'Professionelles Social Media Marketing für Ihr Center. Steigern Sie die Interaktion mit Ihren Kunden durch unsere umfassenden Leistungen.'
-  })
+  }),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 export const aokTemplate: Template = {
   id: 'aok',
   name: 'AOK',
-  type: 'INDUSTRY',
+  type: 'CUSTOM',
   active: true,
   subdomain: 'aok',
-  content: JSON.stringify({
+  jsonContent: JSON.stringify({
     hero: {
       title: 'Wir schalten Ihre Webseite in den Dialog-Modus.',
       subtitle: 'Schluss mit langem Suchen',
@@ -192,22 +175,14 @@ export const aokTemplate: Template = {
         title: 'Schnelle Informationsfindung',
         description: 'Direkte Antworten statt langes Suchen: Der Dialog-Modus findet relevante Inhalte in Sekundenschnelle.'
       }
-    ],
-    callToAction: {
-      title: 'Testen Sie die AOK-Gesundheitsberatung',
-      description: 'Erleben Sie selbst, wie einfach und intuitiv die Suche nach Gesundheitsinformationen sein kann.',
-      primaryButton: {
-        text: 'Zur Gesundheitsberatung',
-        url: '/beratung'
-      }
-    }
+    ]
   }),
-  branding: JSON.stringify({
+  jsonBranding: JSON.stringify({
     logo: './aok-logo.png',
     primaryColor: '#005e3f',
     secondaryColor: '#004730'
   }),
-  bot: JSON.stringify({
+  jsonBot: JSON.stringify({
     type: 'examples',
     examples: [
       {
@@ -232,10 +207,12 @@ export const aokTemplate: Template = {
       }
     ]
   }),
-  meta: JSON.stringify({
+  jsonMeta: JSON.stringify({
     title: 'AOK Gesundheitsberatung | Dialog-AI',
     description: 'Die intelligente Gesundheitsberatung der AOK. Finden Sie schnell und einfach Antworten auf Ihre Gesundheitsfragen.'
-  })
+  }),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 export class TemplateStore {
@@ -245,10 +222,10 @@ export class TemplateStore {
       ...rest,
       type: template.type as string,
       subdomain: template.subdomain || null,
-      content: template.content as unknown as Prisma.JsonValue,
-      branding: template.branding as unknown as Prisma.JsonValue,
-      bot: template.bot as unknown as Prisma.JsonValue,
-      meta: template.meta as unknown as Prisma.JsonValue
+      jsonContent: template.jsonContent as unknown as Prisma.JsonValue,
+      jsonBranding: template.jsonBranding as unknown as Prisma.JsonValue,
+      jsonBot: template.jsonBot as unknown as Prisma.JsonValue,
+      jsonMeta: template.jsonMeta as unknown as Prisma.JsonValue
     };
   }
 
@@ -256,11 +233,11 @@ export class TemplateStore {
     return {
       ...template,
       type: template.type as TemplateType,
-      subdomain: template.subdomain || undefined,
-      content: JSON.stringify(template.content),
-      branding: JSON.stringify(template.branding),
-      bot: JSON.stringify(template.bot),
-      meta: JSON.stringify(template.meta)
+      subdomain: template.subdomain || null,
+      jsonContent: JSON.stringify(template.jsonContent),
+      jsonBranding: JSON.stringify(template.jsonBranding),
+      jsonBot: JSON.stringify(template.jsonBot),
+      jsonMeta: JSON.stringify(template.jsonMeta)
     } as Template;
   }
 
