@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { BotEditor } from '@/components/admin/template/BotEditor'
-import { ParsedBot } from '@/lib/types/template'
+import { ParsedBot, SmartSearchConfig, FlowiseBotConfig, AOKBotConfig } from '@/lib/types/template'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
 
@@ -10,6 +10,35 @@ interface BotPageProps {
   params: {
     id: string
   }
+}
+
+type BotType = 'smart-search' | 'flowise' | 'aok-handler'
+
+const defaultSmartSearchConfig: SmartSearchConfig = {
+  urls: [],
+  excludePatterns: [],
+  chunkSize: 300,
+  temperature: 0.7,
+  maxTokens: 1000,
+  systemPrompt: 'Du bist ein hilfreicher Assistent.',
+  userPrompt: 'Beantworte die folgende Frage basierend auf dem Kontext: {question}\n\nKontext:\n{context}',
+  followupPrompt: 'Beantworte die Folgefrage basierend auf dem vorherigen Kontext: {question}',
+  pinecone: {
+    indexName: '',
+    environment: ''
+  }
+}
+
+const defaultFlowiseConfig: FlowiseBotConfig = {
+  flowId: '',
+  apiKey: ''
+}
+
+const defaultAOKConfig: AOKBotConfig = {
+  pineconeApiKey: '',
+  pineconeEnvironment: '',
+  pineconeIndex: '',
+  openaiApiKey: ''
 }
 
 export default function BotPage({ params }: BotPageProps) {
@@ -52,67 +81,47 @@ export default function BotPage({ params }: BotPageProps) {
     }
   }
 
-  const handleTypeChange = (type: 'smart-search' | 'flowise' | 'aok-handler') => {
+  const handleTypeChange = (newType: BotType) => {
     if (!bot) return
-
-    let newBot: ParsedBot = {
-      type,
-      smartSearch: type === 'smart-search' ? {
-        urls: [],
-        excludePatterns: [],
-        chunkSize: 300,
-        temperature: 0.7,
-        maxTokens: 1000,
-        systemPrompt: 'Du bist ein hilfreicher Assistent.',
-        userPrompt: 'Beantworte die folgende Frage basierend auf dem Kontext: {question}\n\nKontext:\n{context}',
-        followupPrompt: 'Beantworte die Folgefrage basierend auf dem vorherigen Kontext: {question}',
-        pinecone: {
-          indexName: '',
-          environment: ''
-        }
-      } : undefined,
-      flowise: type === 'flowise' ? {
-        flowId: '',
-        apiKey: ''
-      } : undefined,
-      aokHandler: type === 'aok-handler' ? {
-        pineconeApiKey: '',
-        pineconeEnvironment: '',
-        pineconeIndex: '',
-        openaiApiKey: ''
-      } : undefined
+    const updatedBot: ParsedBot = {
+      ...bot,
+      type: newType,
+      smartSearch: newType === 'smart-search' ? defaultSmartSearchConfig : undefined,
+      flowise: newType === 'flowise' ? defaultFlowiseConfig : undefined,
+      aokHandler: newType === 'aok-handler' ? defaultAOKConfig : undefined
     }
-
-    setBot(newBot)
-    handleBotChange(newBot)
+    handleBotChange(updatedBot)
   }
 
   const handleBotChange = async (updatedBot: ParsedBot) => {
     try {
-      const response = await fetch(`/api/templates/${params.id}/bot`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bot: updatedBot }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Fehler beim Speichern')
-      }
-
       setBot(updatedBot)
+      await saveBotConfig(updatedBot)
       toast({
-        title: 'Erfolg',
-        description: 'Die Änderungen wurden gespeichert.'
+        title: 'Bot-Konfiguration gespeichert',
+        description: 'Die Änderungen wurden erfolgreich gespeichert.'
       })
     } catch (error) {
-      console.error('Fehler beim Speichern:', error)
+      console.error('Fehler beim Speichern der Bot-Konfiguration:', error)
       toast({
         title: 'Fehler',
-        description: error instanceof Error ? error.message : 'Die Änderungen konnten nicht gespeichert werden.'
+        description: 'Die Bot-Konfiguration konnte nicht gespeichert werden.'
       })
+    }
+  }
+
+  const saveBotConfig = async (bot: ParsedBot) => {
+    const response = await fetch(`/api/templates/${params.id}/bot`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ bot }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Fehler beim Speichern')
     }
   }
 
@@ -135,7 +144,7 @@ export default function BotPage({ params }: BotPageProps) {
   return (
     <div>
       <BotEditor 
-        type={bot.type}
+        type={bot.type as BotType}
         config={
           bot.type === 'smart-search' ? bot.smartSearch :
           bot.type === 'flowise' ? bot.flowise :
@@ -143,13 +152,13 @@ export default function BotPage({ params }: BotPageProps) {
           undefined
         }
         onTypeChange={handleTypeChange}
-        onConfigChange={(newConfig) => {
+        onConfigChange={(newConfig: SmartSearchConfig | FlowiseBotConfig | AOKBotConfig) => {
           const updatedBot: ParsedBot = {
             ...bot,
             type: bot.type,
-            smartSearch: bot.type === 'smart-search' ? newConfig : undefined,
-            flowise: bot.type === 'flowise' ? newConfig : undefined,
-            aokHandler: bot.type === 'aok-handler' ? newConfig : undefined
+            smartSearch: bot.type === 'smart-search' ? newConfig as SmartSearchConfig : undefined,
+            flowise: bot.type === 'flowise' ? newConfig as FlowiseBotConfig : undefined,
+            aokHandler: bot.type === 'aok-handler' ? newConfig as AOKBotConfig : undefined
           }
           handleBotChange(updatedBot)
         }}

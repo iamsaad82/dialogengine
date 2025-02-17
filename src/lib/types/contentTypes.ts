@@ -24,6 +24,10 @@ export const ContentTypes = {
   Success: 'success' as ContentType
 } as const
 
+export function isValidContentType(type: string): type is ContentType {
+  return ['info', 'warning', 'error', 'success'].includes(type as ContentType)
+}
+
 export const ContentTypeEnum = {
   CityAdministration: 'city-administration' as ContentCategory,
   Medical: 'medical' as ContentCategory,
