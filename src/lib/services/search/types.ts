@@ -2,6 +2,7 @@ export interface SearchConfig {
   openaiApiKey: string
   pineconeApiKey: string
   pineconeIndex: string
+  pineconeEnvironment: string
   templateId: string
   language?: string
   redisUrl?: string

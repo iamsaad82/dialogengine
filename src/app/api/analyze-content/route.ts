@@ -16,12 +16,17 @@ export async function POST(request: Request) {
     }
 
     // SmartSearch initialisieren
-    const smartSearch = new SmartSearch({
-      openaiApiKey: process.env.OPENAI_API_KEY || '',
-      pineconeApiKey: process.env.PINECONE_API_KEY || '',
-      pineconeIndex: process.env.PINECONE_INDEX || '',
-      templateId
-    });
+    const smartSearch = new SmartSearch(
+      templateId,
+      {
+        openaiApiKey: process.env.OPENAI_API_KEY || '',
+        pineconeApiKey: process.env.PINECONE_API_KEY || '',
+        pineconeIndex: process.env.PINECONE_INDEX || '',
+        pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || '',
+        templateId: templateId,
+        language: 'de'
+      }
+    );
 
     // Analyzer initialisieren
     const analyzer = new DynamicHandlerAnalyzer(smartSearch);
@@ -51,7 +56,6 @@ export async function POST(request: Request) {
       metadata: analysis.metadata,
       response: {
         text: searchResponse.answer,
-        source: searchResponse.metadata?.source || 'hybrid',
         confidence: searchResponse.confidence,
         processingTime
       }
