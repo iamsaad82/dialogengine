@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SmartSearchHandler } from '@/lib/services/smartSearch'
+import { SmartSearchHandler } from '@/lib/services/search/handlers/specialized/smart-search'
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +25,7 @@ export async function POST(
     })
 
     // Suche relevante Inhalte und generiere eine Antwort
-    const response = await smartSearch.handleQuery(query)
+    const response = await smartSearch.handle({ query, type: 'info' })
     
     return NextResponse.json(response)
   } catch (error) {

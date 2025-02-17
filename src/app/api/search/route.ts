@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SmartSearchHandler } from '@/lib/services/smartSearch'
+import { SmartSearchHandler } from '@/lib/services/search/handlers/specialized/smart-search'
 
 const searchHandler = new SmartSearchHandler({
   openaiApiKey: process.env.OPENAI_API_KEY!,
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const response = await searchHandler.handleQuery(query)
+    const response = await searchHandler.handle({ query, type: 'info' })
     return NextResponse.json(response)
   } catch (error) {
     console.error('Fehler bei der Suche:', error)
