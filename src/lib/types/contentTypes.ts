@@ -1,3 +1,5 @@
+export type ContentType = 'info' | 'warning' | 'error' | 'success'
+
 export type ContentCategory = 
   | 'city-administration'
   | 'medical'
@@ -14,8 +16,6 @@ export type ContentCategory =
   | 'aok-digital'          // Digitale Angebote
   | 'aok-emergency'        // Notfall und Akut
   | 'aok-contact'          // Kontakt und Beratung
-
-export type ContentType = 'info' | 'warning' | 'error' | 'success'
 
 export const ContentTypes = {
   Info: 'info' as ContentType,
@@ -42,7 +42,7 @@ export const ContentTypeEnum = {
   AOKContact: 'aok-contact' as ContentCategory
 } as const
 
-export const CONTENT_TYPES: ContentType[] = [
+export const CONTENT_CATEGORIES: ContentCategory[] = [
   'city-administration',
   'medical',
   'insurance',
@@ -60,11 +60,11 @@ export const CONTENT_TYPES: ContentType[] = [
   'aok-contact'
 ]
 
-export function isValidContentType(type: string): type is ContentType {
-  return CONTENT_TYPES.includes(type as ContentType)
+export function isValidContentCategory(type: string): type is ContentCategory {
+  return CONTENT_CATEGORIES.includes(type as ContentCategory)
 }
 
-export const ContentTypeLabels: Record<ContentType, string> = {
+export const ContentCategoryLabels: Record<ContentCategory, string> = {
   'city-administration': 'Stadtverwaltung',
   'medical': 'Medizin',
   'insurance': 'Versicherung',
@@ -82,7 +82,7 @@ export const ContentTypeLabels: Record<ContentType, string> = {
   'aok-contact': 'Kontakt & Support'
 }
 
-export const ContentTypeDescriptions: Record<ContentType, string> = {
+export const ContentCategoryDescriptions: Record<ContentCategory, string> = {
   'city-administration': 'Informationen zur Stadtverwaltung',
   'medical': 'Allgemeine medizinische Informationen',
   'insurance': 'Allgemeine Versicherungsinformationen',
