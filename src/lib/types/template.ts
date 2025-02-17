@@ -152,6 +152,9 @@ export interface ParsedMeta {
   title: string
   description: string
   keywords: string[]
+  domain: string
+  contactUrl: string
+  servicesUrl: string
 }
 
 export interface ExampleMetadata {

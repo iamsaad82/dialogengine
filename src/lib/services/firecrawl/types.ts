@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ContentType } from '../../types/contentTypes'
 
 export interface FirecrawlConfig {
   openaiApiKey: string
@@ -93,26 +94,17 @@ export interface CrawlStatus {
 
 export interface ExtractOptions {
   prompt?: string
-  schema?: Record<string, any>
-  enableWebSearch?: boolean
 }
 
 export interface ExtractResponse {
-  success: boolean
-  data: Record<string, any>
-  status: string
-  expiresAt: string
+  text: string
+  metadata: Record<string, any>
 }
 
 export interface ExtractResult {
   title: string
   description: string
-  services: Array<{
-    name: string
-    description: string
-    requirements?: string
-    contact?: string
-  }>
+  services: ServiceData[]
   contact_info: {
     phone?: string
     email?: string
@@ -121,22 +113,30 @@ export interface ExtractResult {
 }
 
 export interface ServiceData {
-  name?: string;
-  description?: string;
-  requirements?: string;
-  contact?: string;
+  name: string
+  description: string
+  requirements?: string[]
+  contact?: string
 }
 
 export interface CrawlResult {
+  url: string
+  title: string
   markdown: string
+  metadata?: Record<string, any>
+}
+
+export interface ProcessedDocument {
+  type: ContentType
+  confidence: number
   metadata: {
-    url: string
-    title: string
-    scrapeId: string
-    viewport: string
-    sourceURL: string
-    statusCode: number
-    templateId?: string
+    title?: string
+    description?: string
+    name?: string
+    email?: string
+    phone?: string
+    address?: string
+    buttonText?: string
   }
 }
 

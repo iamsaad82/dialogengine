@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai'
 import { ContentTypeDetector } from '../contentTypeDetector'
-import { ContentType, ContentTypeResult, ContentTypeMetadata, getDefaultMetadata } from '../../types/contentTypes'
-import { ExtractOptions, ExtractResponse, ExtractResult, ServiceData, CrawlResult } from './types'
+import { ContentType, ContentTypes } from '../../types/contentTypes'
+import { ExtractOptions, ExtractResult, ServiceData, CrawlResult, ProcessedDocument } from './types'
 
 export class ContentProcessor {
   private openai: OpenAI
@@ -17,28 +17,22 @@ export class ContentProcessor {
   async detectContentType(content: string): Promise<ContentType> {
     try {
       const result = await this.detector.detect({
-        text: content,
+        content,
         title: '',
         url: ''
       })
       
       // Konvertiere den Typ in einen ContentType
       switch (result.type) {
-        case 'info': return ContentType.INFO
-        case 'service': return ContentType.SERVICE
-        case 'product': return ContentType.PRODUCT
-        case 'event': return ContentType.EVENT
-        case 'location': return ContentType.LOCATION
-        case 'video': return ContentType.VIDEO
-        case 'link': return ContentType.LINK
-        case 'contact': return ContentType.CONTACT
-        case 'faq': return ContentType.FAQ
-        case 'download': return ContentType.DOWNLOAD
-        default: return ContentType.INFO
+        case 'info': return ContentTypes.Info
+        case 'warning': return ContentTypes.Warning
+        case 'error': return ContentTypes.Error
+        case 'success': return ContentTypes.Success
+        default: return ContentTypes.Info
       }
     } catch (error) {
       console.error('Fehler bei der Content-Type-Erkennung:', error)
-      return ContentType.INFO
+      return ContentTypes.Info
     }
   }
 
@@ -119,49 +113,32 @@ export class ContentProcessor {
     return result
   }
 
-  async processCrawlResult(result: CrawlResult): Promise<ContentTypeResult> {
+  async processCrawlResult(result: CrawlResult): Promise<ProcessedDocument> {
     const contentType = await this.detectContentType(result.markdown)
     const extractedInfo = await this.extractInformation(result.markdown)
 
     // Erstelle Metadata basierend auf dem Content-Type
-    let metadata: ContentTypeMetadata[ContentType]
+    let metadata = {
+      title: extractedInfo.title,
+      description: extractedInfo.description
+    }
 
-    switch (contentType) {
-      case ContentType.INFO:
-        metadata = {
-          title: extractedInfo.title,
-          description: extractedInfo.description
-        }
-        break
-
-      case ContentType.SERVICE:
-        metadata = {
-          title: extractedInfo.title,
-          description: extractedInfo.description,
-          buttonText: 'Mehr erfahren'
-        }
-        break
-
-      case ContentType.CONTACT:
-        metadata = {
-          name: extractedInfo.title,
-          email: extractedInfo.contact_info.email,
-          phone: extractedInfo.contact_info.phone,
-          address: extractedInfo.contact_info.address,
-          buttonText: 'Kontaktieren'
-        }
-        break
-
-      default:
-        metadata = {
-          title: extractedInfo.title,
-          description: extractedInfo.description
-        }
+    if (contentType === ContentTypes.Info) {
+      metadata = {
+        title: extractedInfo.title,
+        description: extractedInfo.description
+      }
+    } else if (contentType === ContentTypes.Success) {
+      metadata = {
+        title: extractedInfo.title,
+        description: extractedInfo.description,
+        buttonText: 'Mehr erfahren'
+      }
     }
 
     return {
       type: contentType,
-      confidence: 1.0, // TODO: Konfidenz aus der Erkennung verwenden
+      confidence: 1.0,
       metadata
     }
   }

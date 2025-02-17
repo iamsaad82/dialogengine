@@ -180,48 +180,42 @@ export class ContentTypeDetector {
 
   private async analyzeWithAI(content: string): Promise<ExtendedDetectionResult> {
     try {
-      const response = await this.openai.chat.completions.create({
+      const completion = await this.openai.chat.completions.create({
         model: 'gpt-4-turbo-preview',
         messages: [
           {
             role: 'system',
-            content: `Analysiere den folgenden Text und bestimme den Content-Type.
-            Mögliche Typen sind: ${Object.values(ContentTypeEnum).join(', ')}.
-            Berücksichtige dabei:
-            1. Fachspezifische Begriffe und Terminologie
-            2. Kontext und Thematik
-            3. Strukturelle Merkmale
-            4. Zielgruppe und Intention
-            
-            Antworte im JSON-Format mit:
-            {
-              "type": string,
-              "confidence": number,
-              "explanation": string,
-              "suggestedMetadata": object
-            }`
+            content: 'Analysiere den folgenden Text und bestimme den Content-Type. ' +
+              'Mögliche Typen sind: info, warning, error, success. ' +
+              'Gib das Ergebnis als JSON mit type und confidence zurück.'
           },
           {
             role: 'user',
-            content
+            content: `Titel: ${input.title}\nURL: ${input.url}\n\nInhalt:\n${input.content}`
           }
         ],
+        temperature: 0.3,
         response_format: { type: 'json_object' }
       })
 
-      if (!response.choices[0].message.content) {
+      const response = completion.choices[0].message.content
+      if (!response) {
         throw new Error('Keine Antwort von OpenAI erhalten')
       }
 
-      const result = JSON.parse(response.choices[0].message.content)
+      const result = JSON.parse(response) as ExtendedDetectionResult
       return {
         type: result.type as ContentType,
-        confidence: result.confidence,
+        confidence: result.confidence || 1.0,
         suggestedMetadata: result.suggestedMetadata
       }
     } catch (error) {
-      console.error('[ContentTypeDetector] Fehler bei der Content-Analyse:', error)
-      throw error
+      console.error('Fehler bei der Content-Type-Erkennung:', error)
+      return {
+        type: 'info',
+        confidence: 0.5,
+        suggestedMetadata: {}
+      }
     }
   }
 
