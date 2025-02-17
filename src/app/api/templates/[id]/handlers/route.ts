@@ -40,7 +40,7 @@ export async function GET(
     // erstelle einen Standard-Handler
     if (handlers.length === 0 && botConfig.type === 'aok-handler') {
       handlers.push({
-        type: ContentTypeEnum.AOK_SERVICE,
+        type: 'info',
         active: true,
         metadata: {
           keyTopics: [],
