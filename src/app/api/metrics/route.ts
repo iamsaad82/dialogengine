@@ -35,7 +35,7 @@ export async function POST(request: Request) {
           break
           
         case 'latency':
-          monitoring.recordHandlerLatency(event.handler, event.duration || 0)
+          monitoring.recordHandlerLatency(event.duration || 0)
           break
           
         case 'abtest':
