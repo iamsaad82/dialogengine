@@ -19,6 +19,11 @@ import { SearchCache } from '../../cache/SearchCache'
 import { SearchHealth } from '../../health/SearchHealth'
 import { DocumentMetadata } from '../types/document'
 
+interface Cache {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, ttl: number): Promise<void>;
+}
+
 export class SmartSearch {
   private readonly templateId: string
   private readonly config: SearchConfig
@@ -31,10 +36,16 @@ export class SmartSearch {
   private readonly analyzer: QueryAnalyzer
   private readonly generator: ResponseGenerator
   private readonly handlerManager: HandlerManager
+  private cache?: Cache
 
-  constructor(templateId: string, config: SearchConfig) {
+  constructor(
+    templateId: string,
+    config: SearchConfig,
+    cache?: SearchCache
+  ) {
     this.templateId = templateId
     this.config = config
+    this.cache = cache
 
     // Basis-Services initialisieren
     this.openai = new OpenAI({ apiKey: config.openaiApiKey })
@@ -64,17 +75,8 @@ export class SmartSearch {
       maxTokens: config.maxTokens
     })
 
-    this.generator = new ResponseGenerator({
-      openai: this.openai,
-      temperature: config.temperature,
-      maxTokens: config.maxTokens
-    })
-
-    this.handlerManager = new HandlerManager({
-      templateId: config.templateId,
-      language: config.language,
-      redisUrl: config.redisUrl
-    })
+    this.generator = new ResponseGenerator(config.openaiApiKey)
+    this.handlerManager = new HandlerManager()
 
     // Index-Existenz sicherstellen
     this.initializeIndex().catch(error => {
@@ -103,38 +105,68 @@ export class SmartSearch {
     query: string, 
     filter?: Record<string, any>
   ): Promise<SearchResult[]> {
+    const cacheKey = `search:${query}:${JSON.stringify(filter || {})}`;
+    
     try {
+      // Cache-Check
+      if (this.cache) {
+        const cached = await this.cache.get(cacheKey);
+        if (cached) {
+          console.log('[SmartSearch] Cache-Treffer für:', query);
+          return cached as SearchResult[];
+        }
+      }
+
       const embedding = await this.openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: query,
         dimensions: 1536
-      })
+      });
 
-      const queryEmbedding = embedding.data[0].embedding
+      const queryEmbedding = embedding.data[0].embedding;
       const results = await this.pineconeService.query(
         this.templateId,
         queryEmbedding,
         this.config.searchConfig?.maxResults || 5,
         filter
-      )
+      );
 
-      // Prüfen ob Ergebnisse vorhanden sind
       if (!results.matches || results.matches.length === 0) {
-        console.log('[SmartSearch] Keine Ergebnisse gefunden für Query:', query)
-        return []
+        console.log('[SmartSearch] Keine Ergebnisse gefunden für Query:', query);
+        return [];
       }
 
-      return results.matches.map(match => ({
+      const searchResults = results.matches.map(match => ({
         id: match.id,
         score: match.score || 0,
         metadata: match.metadata as DocumentMetadata,
         content: (match.metadata as DocumentMetadata).content || '',
         type: (match.metadata as DocumentMetadata).type || 'text'
-      }))
+      }));
+
+      // Cache-Speicherung
+      if (this.cache) {
+        await this.cache.set(cacheKey, searchResults);
+      }
+
+      return searchResults;
     } catch (error) {
-      console.error('[SmartSearch] Fehler bei der Dokumentensuche:', error)
-      throw error
+      console.error('[SmartSearch] Fehler bei der Dokumentensuche:', error);
+      throw error;
     }
+  }
+
+  private getRelatedQueries(query: string): string[] {
+    // Generiere verwandte Queries für Batch-Processing
+    const words = query.toLowerCase().split(' ');
+    const related = [];
+    
+    if (words.length > 3) {
+      related.push(words.slice(0, 3).join(' ')); // Erste 3 Wörter
+      related.push(words.slice(-3).join(' ')); // Letzte 3 Wörter
+    }
+    
+    return related;
   }
 
   public async search(
