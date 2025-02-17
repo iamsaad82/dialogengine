@@ -44,8 +44,9 @@ export default function MetaPage({ params }: MetaPageProps) {
       title: '',
       description: '',
       domain: '',
-      contactUrl: '/kontakt',
-      servicesUrl: '/leistungen'
+      contactUrl: '',
+      servicesUrl: '',
+      keywords: []
     }
   }
 
