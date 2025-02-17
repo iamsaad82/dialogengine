@@ -17,7 +17,8 @@ export async function PUT(request: NextRequest) {
       pineconeApiKey: process.env.PINECONE_API_KEY!,
       pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || 'europe-west4',
       pineconeHost: process.env.PINECONE_HOST || '',
-      pineconeIndex: process.env.PINECONE_INDEX || 'dialog-engine'
+      pineconeIndex: process.env.PINECONE_INDEX!,
+      templateId: process.env.DEFAULT_TEMPLATE_ID || 'default'
     })
 
     await vectorizer.updateContentType(contentId, type)
