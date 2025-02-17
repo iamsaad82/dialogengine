@@ -11,7 +11,8 @@ import {
   metaSchema,
   templateSchema
 } from '../schemas/template'
-import { ContentType, ContentMetadata } from './contentTypes'
+import { ContentType } from './contentTypes'
+import { DocumentMetadata, DocumentLinks } from '../services/document/types'
 
 export const TemplateTypeEnum = {
   CUSTOM: 'CUSTOM',
@@ -34,6 +35,16 @@ export interface Template {
   updatedAt: Date
   flowiseConfigId: string | null
   flowiseConfig: any | null
+  description: string
+  config: {
+    examples?: string[]
+    flowiseId?: string
+    smartSearch?: SmartSearchConfig
+  }
+  handlers?: HandlerConfig[]
+  branding?: BrandingConfig
+  showcase?: ShowcaseConfig
+  meta?: MetaConfig
 }
 
 export type ParsedTemplate = {
@@ -103,43 +114,38 @@ export interface ParsedBranding {
 }
 
 export interface SmartSearchConfig {
-  provider: 'openai';
-  urls: string[];
-  excludePatterns: string[];
-  chunkSize: number;
-  temperature: number;
-  reindexInterval: number;
-  maxTokensPerRequest: number;
-  maxPages: number;
-  useCache: boolean;
-  similarityThreshold: number;
-  apiKey: string;
-  indexName: string;
-  apiEndpoint: string;
-  templateId?: string;
+  urls: string[]
+  excludePatterns: string[]
+  chunkSize: number
+  temperature: number
+  maxTokens: number
+  systemPrompt: string
+  userPrompt: string
+  followupPrompt: string
+  pinecone: {
+    indexName: string
+    environment: string
+  }
+}
+
+export interface FlowiseBotConfig {
+  flowId: string
+  apiKey: string
+}
+
+export interface AOKBotConfig {
+  pineconeApiKey: string
+  pineconeEnvironment: string
+  pineconeIndex: string
+  openaiApiKey: string
 }
 
 export interface ParsedBot {
-  type: 'smart-search' | 'flowise'
-  smartSearch?: {
-    provider: string
-    urls: string[]
-    excludePatterns: string[]
-    chunkSize: number
-    temperature: number
-    reindexInterval: number
-    maxTokensPerRequest: number
-    maxPages: number
-    useCache: boolean
-    similarityThreshold: number
-    apiKey: string
-    indexName: string
-  }
-  flowise?: {
-    chatflowId: string
-    apiHost: string
-    apiKey: string
-  }
+  type: 'smart-search' | 'flowise' | 'aok-handler' | 'examples'
+  smartSearch?: SmartSearchConfig
+  flowise?: FlowiseBotConfig
+  aokHandler?: AOKBotConfig
+  examples?: Example[]
 }
 
 export interface ParsedMeta {
@@ -250,11 +256,37 @@ export interface UploadStatus {
     documentsProcessed?: number
     totalDocuments?: number
     currentDocument?: string
+    currentOperation?: string
+    processingDetails?: {
+      stage: string
+      progress: number
+      info?: string
+      subStage?: string
+      timeRemaining?: string
+      processedItems?: number
+      totalItems?: number
+    }
     detectedTypes?: Array<{
       type: ResponseType
       confidence: number
       count: number
     }>
+    errors?: Array<{
+      type: string
+      message: string
+      timestamp: string
+    }>
+    warnings?: Array<{
+      type: string
+      message: string
+      timestamp: string
+    }>
+    performance?: {
+      startTime: string
+      currentDuration: string
+      estimatedTimeRemaining?: string
+      averageSpeed?: string
+    }
   }
 }
 
@@ -274,4 +306,136 @@ export interface ContentTypeResult {
   confidence: number
   metadata: ResponseMetadata
   error?: ContentTypeError
+}
+
+interface PineconeConfig {
+  environment: string
+  index: string
+}
+
+interface HandlerSettings {
+  matchThreshold: number
+  contextWindow: number
+  maxTokens: number
+  dynamicResponses: boolean
+  includeLinks?: boolean
+  includeContact?: boolean
+  includeSteps?: boolean
+  includePrice?: boolean
+  includeAvailability?: boolean
+  useExactMatches?: boolean
+  pineconeConfig?: PineconeConfig
+}
+
+interface HandlerMetadata {
+  keyTopics: string[]
+  entities: string[]
+  facts: string[]
+}
+
+export interface HandlerConfig {
+  type: ContentType
+  active: boolean
+  metadata: HandlerMetadata
+  responses: string[]
+  settings: HandlerSettings
+}
+
+export interface HandlerTemplateConfig {
+  responseTypes: string[];
+  requiredMetadata: string[];
+  customSettings: Record<string, any>;
+}
+
+export interface DocumentPattern {
+  name: string;
+  pattern: string;
+  required: boolean;
+  extractMetadata?: string[];
+}
+
+export interface SectionDefinition {
+  name: string;
+  startPattern: string;
+  endPattern: string;
+  required: boolean;
+  extractors?: string[];
+}
+
+export interface MetadataDefinition {
+  name: string;
+  type: 'string' | 'string[]' | 'date' | 'boolean' | 'number' | 'object';
+  required: boolean;
+  pattern?: string;
+  defaultValue?: any;
+}
+
+export interface ExtractorConfig {
+  name: string;
+  type: 'regex' | 'ai' | 'custom';
+  config: Record<string, any>;
+}
+
+export interface TemplateConfig {
+  id: string;
+  name: string;
+  version: string;
+  structure: {
+    patterns: DocumentPattern[];
+    sections: SectionDefinition[];
+    metadata: MetadataDefinition[];
+    extractors: ExtractorConfig[];
+  };
+  handlerConfig: HandlerTemplateConfig;
+}
+
+export interface BotConfig {
+  type: 'examples' | 'flowise' | 'smart-search' | 'aok-handler'
+  examples?: Example[]
+  flowiseId?: string
+  smartSearch?: SmartSearchConfig
+  aokHandler?: {
+    pineconeApiKey: string
+    pineconeEnvironment: string
+    pineconeIndex: string
+    openaiApiKey: string
+  }
+  handlers?: {
+    [templateId: string]: HandlerConfig[]
+  }
+}
+
+export interface BrandingConfig {
+  logo: string
+  colors: {
+    primary: string
+    secondary: string
+    accent: string
+  }
+  fonts: {
+    heading: string
+    body: string
+  }
+}
+
+export interface ShowcaseConfig {
+  image: string
+  altText: string
+  context: {
+    title: string
+    description: string
+  }
+  cta: {
+    title: string
+    question: string
+  }
+}
+
+export interface MetaConfig {
+  title: string
+  description: string
+  keywords: string[]
+  author: string
+  image: string
+  url: string
 } 

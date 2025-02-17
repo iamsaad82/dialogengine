@@ -27,41 +27,64 @@ export default function BotPage({ params }: BotPageProps) {
       const response = await fetch(`/api/templates/${params.id}/bot`)
       if (!response.ok) throw new Error('Fehler beim Laden')
       const data = await response.json()
-      setBot(data.bot || createDefaultBot('examples'))
+      setBot(data.bot || createDefaultBot())
     } catch (error) {
       console.error('Fehler beim Laden der Bot-Daten:', error)
       toast({
         title: 'Fehler',
         description: 'Die Bot-Daten konnten nicht geladen werden.'
       })
-      setBot(createDefaultBot('examples'))
+      setBot(createDefaultBot())
     } finally {
       setLoading(false)
     }
   }
 
-  const createDefaultBot = (type: 'examples' | 'flowise' | 'smart-search'): ParsedBot => {
+  const createDefaultBot = (): ParsedBot => {
     return {
+      type: 'aok-handler',
+      aokHandler: {
+        pineconeApiKey: '',
+        pineconeEnvironment: '',
+        pineconeIndex: '',
+        openaiApiKey: ''
+      }
+    }
+  }
+
+  const handleTypeChange = (type: 'smart-search' | 'flowise' | 'aok-handler') => {
+    if (!bot) return
+
+    let newBot: ParsedBot = {
       type,
-      examples: type === 'examples' ? [] : undefined,
-      flowiseId: type === 'flowise' ? '' : undefined,
       smartSearch: type === 'smart-search' ? {
-        provider: 'openai',
         urls: [],
         excludePatterns: [],
-        chunkSize: 1000,
+        chunkSize: 300,
         temperature: 0.7,
-        reindexInterval: 24,
-        maxTokensPerRequest: 500,
-        maxPages: 100,
-        useCache: true,
-        similarityThreshold: 0.7,
-        apiKey: '',
-        indexName: '',
-        apiEndpoint: '',
-        templateId: params.id
+        maxTokens: 1000,
+        systemPrompt: 'Du bist ein hilfreicher Assistent.',
+        userPrompt: 'Beantworte die folgende Frage basierend auf dem Kontext: {question}\n\nKontext:\n{context}',
+        followupPrompt: 'Beantworte die Folgefrage basierend auf dem vorherigen Kontext: {question}',
+        pinecone: {
+          indexName: '',
+          environment: ''
+        }
+      } : undefined,
+      flowise: type === 'flowise' ? {
+        flowId: '',
+        apiKey: ''
+      } : undefined,
+      aokHandler: type === 'aok-handler' ? {
+        pineconeApiKey: '',
+        pineconeEnvironment: '',
+        pineconeIndex: '',
+        openaiApiKey: ''
       } : undefined
     }
+
+    setBot(newBot)
+    handleBotChange(newBot)
   }
 
   const handleBotChange = async (updatedBot: ParsedBot) => {
@@ -112,9 +135,24 @@ export default function BotPage({ params }: BotPageProps) {
   return (
     <div>
       <BotEditor 
-        bot={bot}
-        onChange={handleBotChange}
-        templateId={params.id}
+        type={bot.type}
+        config={
+          bot.type === 'smart-search' ? bot.smartSearch :
+          bot.type === 'flowise' ? bot.flowise :
+          bot.type === 'aok-handler' ? bot.aokHandler :
+          undefined
+        }
+        onTypeChange={handleTypeChange}
+        onConfigChange={(newConfig) => {
+          const updatedBot: ParsedBot = {
+            ...bot,
+            type: bot.type,
+            smartSearch: bot.type === 'smart-search' ? newConfig : undefined,
+            flowise: bot.type === 'flowise' ? newConfig : undefined,
+            aokHandler: bot.type === 'aok-handler' ? newConfig : undefined
+          }
+          handleBotChange(updatedBot)
+        }}
       />
     </div>
   )

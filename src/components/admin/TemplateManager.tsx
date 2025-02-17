@@ -25,9 +25,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 const defaultTemplate: Template = {
   id: '',
   name: 'Demo Template',
-  type: 'NEUTRAL',
+  type: 'CUSTOM',
   active: true,
-  subdomain: null,
+  subdomain: '',
   jsonContent: JSON.stringify({
     hero: {
       title: 'Willkommen zur Demo',
@@ -48,18 +48,30 @@ const defaultTemplate: Template = {
     font: 'Inter'
   }),
   jsonBot: JSON.stringify({
-    type: 'examples',
-    examples: []
+    type: 'aok-handler',
+    aokHandler: {
+      pineconeApiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY || '',
+      pineconeEnvironment: process.env.NEXT_PUBLIC_PINECONE_ENVIRONMENT || '',
+      pineconeIndex: process.env.NEXT_PUBLIC_PINECONE_INDEX || '',
+      openaiApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''
+    },
+    handlers: {}
   }),
   jsonMeta: JSON.stringify({
-    title: '',
-    description: '',
-    domain: '',
-    contactUrl: '/kontakt',
-    servicesUrl: '/leistungen'
+    title: 'Demo Template',
+    description: 'Ein Template für Demonstrationszwecke',
+    keywords: ['demo', 'template', 'chatbot'],
+    author: 'DialogEngine',
+    image: '',
+    url: ''
   }),
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
+  flowiseConfigId: null,
+  flowiseConfig: null,
+  description: 'Ein Template für Demonstrationszwecke',
+  config: {},
+  handlers: []
 }
 
 const parseTemplate = (template: Template): Template => {
@@ -312,9 +324,9 @@ export default function TemplateManager() {
                 <div>
                   <h3 className="font-medium">{template.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {template.type === 'NEUTRAL' ? 'Neutrales Template' : 
-                     template.type === 'INDUSTRY' ? 'Branchen-Template' : 
-                     'Individuelles Template'}
+                    {template.type === 'CUSTOM' ? 'Individuelles Template' : 
+                     template.type === 'FLOWISE' ? 'Flowise Template' : 
+                     'Unbekannter Typ'}
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">

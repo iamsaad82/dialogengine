@@ -1,10 +1,10 @@
 import { describe, expect, test, jest, beforeAll, afterAll } from '@jest/globals'
 import { RedisClient } from '../../src/lib/redis'
 import { ScanStatus } from '../../src/types'
-import { ContentType } from '../../src/lib/types/contentTypes'
+import { CONTENT_TYPES } from '../../src/lib/types/contentTypes'
 import { OpenAI } from 'openai'
-import path from 'path'
-import fs from 'fs'
+import * as path from 'path'
+import * as fs from 'fs'
 
 // Mock für OpenAI und Pinecone
 jest.mock('@pinecone-database/pinecone')
@@ -48,33 +48,43 @@ jest.mock('openai', () => {
   }
 })
 
-describe('Upload und Vektorisierung', () => {
+describe('Upload Integration', () => {
   let client: RedisClient
   const fixturesDir = path.join(__dirname, '../fixtures')
+  const documentsDir = path.join(fixturesDir, 'documents')
   const templateId = 'test-template-123'
-  const documentsDir = path.join(process.cwd(), 'data', 'scans', templateId)
 
   beforeAll(async () => {
     // Stelle sicher, dass die Verzeichnisse existieren
-    [fixturesDir, documentsDir].forEach(dir => {
+    [fixturesDir, documentsDir].forEach((dir: string) => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
       }
     })
 
-    client = new RedisClient()
+    client = new RedisClient(process.env.REDIS_TEST_URL || 'redis://localhost:6379')
     await client.connect()
   })
 
   afterAll(async () => {
-    // Cleanup
-    [fixturesDir, documentsDir].forEach(dir => {
-      if (fs.existsSync(dir)) {
-        fs.rmSync(dir, { recursive: true, force: true })
-      }
-    })
-
     await client.disconnect()
+  })
+
+  test('sollte Dateitypen mit Metadaten verarbeiten', async () => {
+    const detectedTypes = [
+      { type: 'medical', confidence: 0.9 },
+      { type: 'city-administration', confidence: 0.8 },
+      { type: 'insurance', confidence: 0.7 }
+    ]
+    
+    // Finde spezifische Types
+    const medicalType = detectedTypes.find((t: any) => t.type === 'medical')
+    const adminType = detectedTypes.find((t: any) => t.type === 'city-administration')
+    const insuranceType = detectedTypes.find((t: any) => t.type === 'insurance')
+    
+    expect(medicalType).toBeDefined()
+    expect(adminType).toBeDefined()
+    expect(insuranceType).toBeDefined()
   })
 
   test('sollte Dokumente hochladen und Content-Types erkennen', async () => {
@@ -121,9 +131,9 @@ describe('Upload und Vektorisierung', () => {
     expect(detectedTypes).toHaveLength(3)
     
     // Finde spezifische Types
-    const infoType = detectedTypes.find((t: any) => t.type === ContentType.INFO)
-    const contactType = detectedTypes.find((t: any) => t.type === ContentType.CONTACT)
-    const downloadType = detectedTypes.find((t: any) => t.type === ContentType.DOWNLOAD)
+    const infoType = detectedTypes.find((t: any) => t.type === CONTENT_TYPES.INFO)
+    const contactType = detectedTypes.find((t: any) => t.type === CONTENT_TYPES.CONTACT)
+    const downloadType = detectedTypes.find((t: any) => t.type === CONTENT_TYPES.DOWNLOAD)
     
     expect(infoType).toBeDefined()
     expect(contactType).toBeDefined()

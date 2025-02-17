@@ -1,8 +1,10 @@
 export type JobPhase = 
   | 'queued'      // Job wurde erstellt und wartet auf Verarbeitung
+  | 'uploading'   // Dateien werden hochgeladen
   | 'scanning'    // Dateien werden gescannt
+  | 'processing'  // Dateien werden verarbeitet
   | 'analyzing'   // Inhalte werden analysiert
-  | 'vectorizing' // Vektoren werden erstellt
+  | 'indexing'    // Inhalte werden indiziert
   | 'completed'   // Job wurde erfolgreich abgeschlossen
   | 'error'       // Ein Fehler ist aufgetreten
 
@@ -38,7 +40,11 @@ export interface JobUpdate {
   phase: JobPhase
   progress: number
   currentFile?: string
+  details?: string
   error?: JobError
+  startTime?: number
+  estimatedTimeRemaining?: number
+  processingSpeed?: number
 }
 
 export interface JobStatus {
@@ -80,7 +86,13 @@ export interface ScanStatus extends BaseStatus {
 export interface UploadStatus extends BaseStatus {
   fileName: string
   jobId: string
-  currentFile?: string
+  phase: JobPhase
+  progress: number
+  details?: string
+  error?: string
+  startTime?: number
+  estimatedTimeRemaining?: number
+  processingSpeed?: number
 }
 
 // Status für Vektorisierungs-Vorgänge

@@ -1,85 +1,92 @@
 'use client'
 
-import TemplateEditor from '@/components/admin/TemplateEditor'
-import { Template } from '@/lib/schemas/template'
-
-const now = new Date()
-
-const demoTemplate: Omit<Template, 'createdAt' | 'updatedAt'> & {
-  createdAt: string | Date
-  updatedAt: string | Date
-} = {
-  id: 'demo-1',
-  name: 'Demo Template',
-  type: 'NEUTRAL' as const,
-  active: true,
-  subdomain: 'demo',
-  jsonContent: JSON.stringify({
-    hero: {
-      title: 'Willkommen zur Demo',
-      subtitle: 'Testen Sie unseren KI-Chatbot',
-      description: 'Eine leistungsstarke Lösung für Ihre Website'
-    },
-    dialog: {
-      title: 'Wie kann ich helfen?',
-      description: 'Ich beantworte gerne Ihre Fragen'
-    },
-    showcase: {
-      image: '/showcase-demo.png',
-      altText: 'Demo Showcase',
-      context: {
-        title: 'Intelligente Konversation',
-        description: 'Erleben Sie, wie einfach die Kommunikation sein kann'
-      },
-      cta: {
-        title: 'Jetzt testen',
-        question: 'Möchten Sie mehr über unsere Funktionen erfahren?'
-      }
-    }
-  }),
-  jsonBranding: JSON.stringify({
-    logo: '/demo-logo.png',
-    primaryColor: '#4F46E5',
-    secondaryColor: '#7C3AED'
-  }),
-  jsonBot: JSON.stringify({
-    type: 'examples',
-    examples: [
-      {
-        question: 'Was sind die Öffnungszeiten?',
-        answer: 'Wir sind Montag bis Freitag von 9:00 bis 18:00 Uhr für Sie da.',
-        context: 'Öffnungszeiten',
-        type: 'info'
-      }
-    ]
-  }),
-  jsonMeta: JSON.stringify({
-    title: 'Demo Template',
-    description: 'Eine Demo-Version unseres KI-Chatbots'
-  }),
-  createdAt: now,
-  updatedAt: now
-}
+import { useEffect, useState } from 'react'
+import { ClientMonitoringService } from '../../lib/monitoring/client-monitoring'
 
 export default function DemoPage() {
+  const [serverMetrics, setServerMetrics] = useState<string>('')
+  const [lastUpdate, setLastUpdate] = useState<string>('')
+
+  useEffect(() => {
+    // Client-Monitoring initialisieren
+    const monitoring = new ClientMonitoringService({
+      serviceName: 'demo-service',
+      serviceVersion: '1.0.0'
+    })
+
+    // Test-Metriken aufzeichnen
+    try {
+      console.log('Starte Metrik-Aufzeichnung...')
+
+      // Handler-Nutzung simulieren
+      monitoring.recordHandlerUsage('test-handler', 'success')
+      console.log('Handler-Metrik aufgezeichnet')
+      
+      // Such-Anfrage simulieren
+      monitoring.recordSearchRequest('success', 'test-handler')
+      console.log('Such-Metrik aufgezeichnet')
+      
+      // Fehler simulieren
+      monitoring.recordError('test-error', '404')
+      console.log('Fehler-Metrik aufgezeichnet')
+      
+      // Cache-Hit simulieren
+      monitoring.updateCacheHitRatio(0.75, 'local')
+      console.log('Cache-Metrik aufgezeichnet')
+      
+      // Latenz simulieren
+      monitoring.recordSearchLatency(0.123, 'test-handler')
+      console.log('Latenz-Metrik aufgezeichnet')
+
+      console.log('Alle Metriken erfolgreich aufgezeichnet')
+
+      // Server-Metriken regelmäßig abrufen
+      const fetchServerMetrics = async () => {
+        try {
+          const response = await fetch('/api/metrics')
+          if (response.ok) {
+            const metrics = await response.text()
+            setServerMetrics(metrics)
+            setLastUpdate(new Date().toLocaleTimeString())
+          }
+        } catch (error) {
+          console.error('Fehler beim Abrufen der Server-Metriken:', error)
+        }
+      }
+
+      // Initial und dann alle 10 Sekunden aktualisieren
+      fetchServerMetrics()
+      const interval = setInterval(fetchServerMetrics, 10000)
+
+      return () => {
+        clearInterval(interval)
+      }
+    } catch (error) {
+      console.error('Fehler beim Aufzeichnen der Metriken:', error)
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-8">Dialog Engine Demo</h1>
-        <TemplateEditor 
-          template={{
-            ...demoTemplate,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          } as Template}
-          onSave={async () => {
-            console.log('Demo: Speichern wurde geklickt')
-          }}
-          onCancel={() => {
-            console.log('Demo: Abbrechen wurde geklickt')
-          }}
-        />
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Monitoring Demo</h1>
+      <div className="mb-4">
+        <p>Client-Metriken werden in der Konsole angezeigt.</p>
+        <p>Server-Metriken werden alle 10 Sekunden aktualisiert.</p>
+        {lastUpdate && (
+          <p className="text-sm text-gray-600">
+            Letzte Aktualisierung: {lastUpdate}
+          </p>
+        )}
       </div>
+      
+      {serverMetrics && (
+        <div className="mt-4">
+          <h2 className="text-xl font-bold mb-2">Server Metriken:</h2>
+          <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-96">
+            {serverMetrics}
+          </pre>
+        </div>
+      )}
     </div>
   )
 } 

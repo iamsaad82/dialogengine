@@ -20,34 +20,35 @@ model User {
 }
 
 model Template {
-  id              String    @id @default(cuid())
-  name            String
-  type            String    @default("NEUTRAL")
-  active          Boolean   @default(true)
-  subdomain       String?   @unique
-  jsonContent     String?   @db.Text
-  jsonBranding    String?   @db.Text
-  jsonBot         String?   @db.Text
-  jsonMeta        String?   @db.Text
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  flowiseConfigId String?   @unique
-  flowiseConfig   FlowiseConfig? @relation(fields: [flowiseConfigId], references: [id])
-  chatLogs        ChatLog[]
-  extractionSchema ExtractionSchema?
+  id                String              @id @default(cuid())
+  name              String
+  type              String              @default("NEUTRAL")
+  active            Boolean             @default(true)
+  subdomain         String?             @unique
+  jsonContent       String?
+  jsonBranding      String?
+  jsonBot           String?
+  jsonMeta          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  flowiseConfigId   String?             @unique
+  extractionSchema  ExtractionSchema?
+  chatLogs          ChatLog[]
+  template_handlers template_handlers[]
+  flowiseConfig     FlowiseConfig?      @relation(fields: [flowiseConfigId], references: [id])
 
   @@map("templates")
 }
 
 model FlowiseConfig {
-  id             String     @id @default(cuid())
-  url            String     @db.VarChar(255)
-  apiKey         String?    @db.VarChar(255)
-  responseRules  Json       @default("[]")
-  defaultButtons Json       @default("[]")
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  templates      Template[]
+  id             String    @id @default(cuid())
+  url            String    @db.VarChar(255)
+  apiKey         String?   @db.VarChar(255)
+  responseRules  Json      @default("[]")
+  defaultButtons Json      @default("[]")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  templates      Template?
 
   @@map("flowise_configs")
 }
@@ -77,15 +78,15 @@ model Asset {
 }
 
 model ChatLog {
-  id              String   @id @default(cuid())
-  timestamp       DateTime @default(now())
-  question        String
-  answer          String?
-  wasAnswered     Boolean
+  id               String   @id @default(cuid())
+  timestamp        DateTime @default(now())
+  question         String
+  answer           String?
+  wasAnswered      Boolean
   matchedExampleId String?
-  templateId      String
-  sessionId       String
-  template        Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId       String
+  sessionId        String
+  template         Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([templateId])
   @@index([timestamp])
@@ -102,6 +103,19 @@ model ExtractionSchema {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model template_handlers {
+  id         String   @id
+  templateId String
+  type       String
+  name       String
+  active     Boolean  @default(true)
+  metadata   Json
+  config     Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  templates  Template @relation(fields: [templateId], references: [id])
 }
 
 enum UserRole {

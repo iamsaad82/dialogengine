@@ -7,19 +7,22 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log('[API] GET /api/jobs/[id] aufgerufen:', params.id)
   try {
     const job = await jobManager.getJob(params.id)
     
     if (!job) {
+      console.log('[API] Job nicht gefunden:', params.id)
       return NextResponse.json(
         { error: 'Job nicht gefunden' },
         { status: 404 }
       )
     }
 
+    console.log('[API] Job gefunden:', job.status)
     return NextResponse.json(job)
   } catch (error) {
-    console.error('Fehler beim Abrufen des Jobs:', error)
+    console.error('[API] Fehler beim Abrufen des Jobs:', error)
     return NextResponse.json(
       { 
         error: 'Fehler beim Abrufen des Jobs',

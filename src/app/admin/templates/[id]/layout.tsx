@@ -33,6 +33,11 @@ export default function Layout({ children, params }: LayoutProps) {
       icon: Bot
     },
     {
+      title: "Handler",
+      href: `/admin/templates/${params.id}/handlers`,
+      icon: FileJson
+    },
+    {
       title: "Schema",
       href: `/admin/templates/${params.id}/schema`,
       icon: FileJson

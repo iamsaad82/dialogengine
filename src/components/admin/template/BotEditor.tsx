@@ -3,101 +3,67 @@
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { ParsedBot, SmartSearchConfig } from "@/lib/types/template"
+import type { ParsedBot, SmartSearchConfig, FlowiseBotConfig, AOKBotConfig } from "@/lib/types/template"
 import { useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { ExamplesBot } from './bot/ExamplesBot'
 import { FlowiseBot } from './bot/FlowiseBot'
 import { SmartSearchBot } from './bot/SmartSearchBot'
+import { AOKBot } from './bot/AOKBot'
 
-const BOT_TYPES = [
-  { value: 'examples', label: 'Beispiel-Antworten' },
-  { value: 'flowise', label: 'Flowise AI' },
-  { value: 'smart-search', label: 'Smart Search AI' }
-]
+export const BOT_TYPES = [
+  { id: 'smart-search', label: 'Smart Search' },
+  { id: 'flowise', label: 'Flowise' },
+  { id: 'aok-handler', label: 'AOK Handler' }
+] as const
+
+type BotType = typeof BOT_TYPES[number]['id']
+type BotConfig = SmartSearchConfig | FlowiseBotConfig | AOKBotConfig
 
 interface BotEditorProps {
-  bot: ParsedBot
-  onChange: (bot: ParsedBot) => void
-  templateId: string
+  type: BotType
+  config?: BotConfig
+  onTypeChange: (type: BotType) => void
+  onConfigChange: (config: BotConfig) => void
 }
 
-export function BotEditor({ bot: initialBot, onChange, templateId }: BotEditorProps) {
-  const [bot, setBot] = useState<ParsedBot>(initialBot)
-  const { toast } = useToast()
-
-  const handleTypeChange = (value: string) => {
-    if (value === bot.type) return
-
-    const newBot: ParsedBot = {
-      type: value as 'examples' | 'flowise' | 'smart-search',
-      examples: value === 'examples' ? [] : undefined,
-      flowiseId: value === 'flowise' ? '' : undefined,
-      smartSearch: value === 'smart-search' ? {
-        provider: 'openai',
-        urls: [],
-        excludePatterns: [],
-        chunkSize: 1000,
-        temperature: 0.7,
-        reindexInterval: 24,
-        maxTokensPerRequest: 500,
-        maxPages: 100,
-        useCache: true,
-        similarityThreshold: 0.7,
-        apiKey: '',
-        indexName: '',
-        apiEndpoint: '',
-        templateId
-      } : undefined
-    }
-
-    setBot(newBot)
-    onChange(newBot)
-  }
-
-  const updateBot = (updates: Partial<ParsedBot>) => {
-    const updatedBot = { ...bot, ...updates }
-    setBot(updatedBot)
-    onChange(updatedBot)
-  }
-
+export function BotEditor({ type, config, onTypeChange, onConfigChange }: BotEditorProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <Label>Bot-Typ</Label>
-        <Select value={bot.type} onValueChange={handleTypeChange}>
+        <Label>Bot Typ</Label>
+        <Select value={type} onValueChange={(value) => onTypeChange(value as BotType)}>
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Wähle einen Bot Typ" />
           </SelectTrigger>
           <SelectContent>
-            {BOT_TYPES.map(type => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
+            {BOT_TYPES.map((botType) => (
+              <SelectItem key={botType.id} value={botType.id}>
+                {botType.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {bot.type === 'examples' && (
-        <ExamplesBot
-          examples={bot.examples || []}
-          onChange={examples => updateBot({ examples })}
-        />
-      )}
-
-      {bot.type === 'flowise' && (
-        <FlowiseBot
-          flowiseId={bot.flowiseId || ''}
-          onChange={flowiseId => updateBot({ flowiseId })}
-        />
-      )}
-
-      {bot.type === 'smart-search' && bot.smartSearch && (
+      {type === 'smart-search' && (
         <SmartSearchBot
-          config={bot.smartSearch}
-          onChange={smartSearch => updateBot({ smartSearch })}
-          templateId={templateId}
+          config={config as SmartSearchConfig}
+          onChange={onConfigChange}
+        />
+      )}
+
+      {type === 'flowise' && (
+        <FlowiseBot
+          config={config as FlowiseBotConfig}
+          onChange={onConfigChange}
+        />
+      )}
+
+      {type === 'aok-handler' && (
+        <AOKBot
+          config={config as AOKBotConfig}
+          onChange={onConfigChange}
         />
       )}
     </div>

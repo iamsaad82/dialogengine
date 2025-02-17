@@ -1,19 +1,31 @@
-import type { SmartSearchConfig } from '../types/template'
+export interface SmartSearchConfig {
+  urls: string[]
+  temperature: number
+  maxTokens: number
+  systemPrompt: string
+  userPrompt: string
+  followupPrompt: string
+  pinecone: {
+    indexName: string
+    environment: string
+  }
+  excludePatterns: string[]
+  chunkSize: number
+}
 
 export const DEFAULT_SMART_SEARCH_CONFIG: SmartSearchConfig = {
-  provider: 'openai',
   urls: [],
+  temperature: 0.7,
+  maxTokens: 1000,
+  systemPrompt: 'Du bist ein hilfreicher Assistent.',
+  userPrompt: 'Bitte beantworte meine Frage basierend auf den bereitgestellten Dokumenten.',
+  followupPrompt: 'Hast du noch weitere Fragen?',
+  pinecone: {
+    indexName: '',
+    environment: ''
+  },
   excludePatterns: ['/admin/*', '/wp-*', '*.pdf', '/wp-json/*', '/api/*'],
-  chunkSize: 300,
-  temperature: 0.1,
-  reindexInterval: 24,
-  maxTokensPerRequest: 500,
-  maxPages: 100,
-  useCache: true,
-  similarityThreshold: 0.8,
-  apiKey: '',
-  indexName: '',
-  apiEndpoint: ''
+  chunkSize: 300
 }
 
 // ... rest of the code ... 

@@ -1,4 +1,5 @@
 import { ContentType, ContentMetadata, StructuredResponse } from '../types'
+import { HandlerConfig, HandlerContext, HandlerResponse } from './types'
 
 export interface HandlerConfig {
   templateId: string
@@ -16,11 +17,13 @@ export abstract class BaseHandler {
   protected readonly templateId: string
   protected readonly language: string
   protected readonly redisUrl?: string
+  protected config: HandlerConfig
 
   constructor(config: HandlerConfig) {
     this.templateId = config.templateId
     this.language = config.language || 'de'
     this.redisUrl = config.redisUrl
+    this.config = config
   }
 
   /**
@@ -31,7 +34,7 @@ export abstract class BaseHandler {
   /**
    * Verarbeitet die Anfrage und generiert eine Antwort
    */
-  public abstract handle(context: HandlerContext): Promise<StructuredResponse>
+  public abstract handle(context: HandlerContext): Promise<HandlerResponse>
 
   /**
    * Extrahiert relevante Informationen aus dem vorherigen Kontext
@@ -147,5 +150,17 @@ export abstract class BaseHandler {
 
     const query = context.query.toLowerCase()
     return followUpPatterns.some(pattern => query.includes(pattern))
+  }
+
+  protected extractContextFromHistory(history: Array<{ role: string; content: string }>) {
+    const lastUserMessage = history
+      .reverse()
+      .find(msg => msg.role === 'user')
+
+    return {
+      lastType: lastUserMessage?.type,
+      topics: [],
+      metadata: lastUserMessage?.metadata || {}
+    }
   }
 } 

@@ -1,10 +1,10 @@
 import { ContentTypeDetector } from '../../src/lib/services/contentTypeDetector'
 import { createMockOpenAI } from './services/search/core/test-utils'
-import { ContentTypeEnum } from '../../src/lib/types/contentTypes'
+import { ContentTypes } from '../../src/lib/types/content'
 
 describe('ContentTypeDetector', () => {
   let detector: ContentTypeDetector
-  let mockOpenAI: ReturnType<typeof createMockOpenAI>
+  let mockOpenAI: any
 
   beforeEach(() => {
     mockOpenAI = createMockOpenAI()
@@ -17,7 +17,7 @@ describe('ContentTypeDetector', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              type: ContentTypeEnum.INFO,
+              type: ContentTypes.INFO,
               confidence: 0.9
             })
           }
@@ -32,7 +32,7 @@ describe('ContentTypeDetector', () => {
         url: 'https://example.com/about'
       })
 
-      expect(result.type).toBe(ContentTypeEnum.INFO)
+      expect(result.type).toBe(ContentTypes.INFO)
       expect(result.confidence).toBe(0.9)
     })
 
@@ -41,7 +41,7 @@ describe('ContentTypeDetector', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              type: ContentTypeEnum.INFO,
+              type: ContentTypes.INFO,
               confidence: 0.5
             })
           }
@@ -56,7 +56,7 @@ describe('ContentTypeDetector', () => {
         url: 'https://example.com/test'
       })
 
-      expect(result.type).toBe(ContentTypeEnum.INFO)
+      expect(result.type).toBe(ContentTypes.INFO)
       expect(result.confidence).toBe(0.5)
     })
 
@@ -69,7 +69,7 @@ describe('ContentTypeDetector', () => {
         url: 'https://example.com/error'
       })
 
-      expect(result.type).toBe(ContentTypeEnum.INFO)
+      expect(result.type).toBe(ContentTypes.INFO)
       expect(result.confidence).toBe(0)
     })
 
@@ -79,7 +79,7 @@ describe('ContentTypeDetector', () => {
           choices: [{
             message: {
               content: JSON.stringify({
-                type: ContentTypeEnum.INFO,
+                type: ContentTypes.INFO,
                 confidence: 0.8
               })
             }
@@ -89,7 +89,7 @@ describe('ContentTypeDetector', () => {
           choices: [{
             message: {
               content: JSON.stringify({
-                type: ContentTypeEnum.SERVICE,
+                type: ContentTypes.SERVICE,
                 confidence: 0.9
               })
             }
@@ -109,8 +109,14 @@ describe('ContentTypeDetector', () => {
       const results = await detector.detectBatch(docs)
 
       expect(results).toHaveLength(2)
-      expect(results[0].type).toBe(ContentTypeEnum.INFO)
-      expect(results[1].type).toBe(ContentTypeEnum.SERVICE)
+      expect(results[0].type).toBe(ContentTypes.INFO)
+      expect(results[1].type).toBe(ContentTypes.SERVICE)
     })
+  })
+
+  it('sollte den Content-Type korrekt erkennen', async () => {
+    const result = await detector.detectType('Dies ist ein Informationstext')
+    expect(result.type).toBe(ContentTypes.INFO)
+    expect(result.confidence).toBeGreaterThan(0.5)
   })
 }) 

@@ -64,7 +64,8 @@ export const defaultTemplate: Template = {
   }),
   jsonBot: JSON.stringify({
     type: 'examples',
-    examples: []
+    examples: [],
+    handlers: {}
   }),
   jsonMeta: JSON.stringify({
     title: '',

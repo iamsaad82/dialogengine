@@ -1,19 +1,21 @@
-import Redis, { RedisOptions } from 'ioredis'
+import { createClient } from 'redis'
 import { EventEmitter } from 'events'
 import { ScanStatus } from '../types'
 
-let redisClient: Redis | null = null
+let redisClient: any | null = null
 
-export function getRedisClient(): Redis {
+export function getRedisClient(): any {
   if (!redisClient) {
-    redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
+    redisClient = createClient({
+      url: process.env.REDIS_URL || 'redis://localhost:6379'
+    })
   }
   return redisClient
 }
 
 export function closeRedisConnection() {
   if (redisClient) {
-    redisClient.disconnect()
+    redisClient.quit()
     redisClient = null
   }
 }
@@ -29,99 +31,182 @@ export interface RedisConfig {
   commandTimeout?: number
 }
 
+export type RedisStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+
 export class RedisClient extends EventEmitter {
-  private client: Redis
-  private _status: 'connected' | 'disconnected' | 'error' = 'disconnected'
+  private client: any
+  private _status: RedisStatus = 'disconnected'
+  private url: string
+  private options: any
+  private retryCount: number = 0
+  private readonly maxRetries: number = 3
 
-  constructor(url: string, options: RedisOptions = {}) {
+  constructor(url: string = 'redis://localhost:6379', options: any = {}) {
     super()
-    
-    // Parse Redis URL
-    const redisUrl = new URL(url)
-    const redisOptions: RedisOptions = {
+    this.url = url
+    this.options = {
       ...options,
-      host: redisUrl.hostname,
-      port: parseInt(redisUrl.port || '6379', 10),
-      username: redisUrl.username || undefined,
-      password: redisUrl.password || undefined,
-      db: parseInt(redisUrl.pathname.slice(1) || '0', 10),
-      tls: redisUrl.protocol === 'rediss:' ? {} : undefined
+      retryStrategy: this.retryStrategy.bind(this)
     }
+  }
 
-    this.client = new Redis(redisOptions)
+  private retryStrategy(retries: number): number | null {
+    if (retries >= this.maxRetries) {
+      this._status = 'error'
+      this.emit('error', new Error('Max retries exceeded'))
+      return null
+    }
+    return Math.min(retries * 1000, 3000)
+  }
+
+  private setupEventListeners(): void {
+    if (!this.client) return
 
     this.client.on('connect', () => {
       this._status = 'connected'
       this.emit('connect')
     })
 
-    this.client.on('error', (error) => {
+    this.client.on('error', (err: Error) => {
       this._status = 'error'
-      this.emit('error', error)
+      this.emit('error', err)
     })
 
-    this.client.on('close', () => {
+    this.client.on('end', () => {
       this._status = 'disconnected'
-      this.emit('close')
+      this.emit('end')
     })
 
-    this.client.on('ready', () => {
-      this.emit('ready')
+    this.client.on('reconnecting', () => {
+      this._status = 'connecting'
+      this.emit('reconnecting')
     })
   }
 
-  get status(): 'connected' | 'disconnected' | 'error' {
-    return this._status
-  }
+  public async connect(): Promise<void> {
+    if (this._status === 'connected') return
 
-  async ping(): Promise<string> {
-    return this.client.ping()
-  }
+    try {
+      this._status = 'connecting'
+      this.client = createClient({
+        url: this.url,
+        ...this.options
+      })
 
-  async get(key: string): Promise<string | null> {
-    return this.client.get(key)
-  }
-
-  async set(key: string, value: string): Promise<'OK'> {
-    return this.client.set(key, value)
-  }
-
-  async setex(key: string, seconds: number, value: string): Promise<'OK'> {
-    return this.client.setex(key, seconds, value)
-  }
-
-  async del(key: string): Promise<number> {
-    return this.client.del(key)
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    return this.client.keys(pattern)
-  }
-
-  async ttl(key: string): Promise<number> {
-    return this.client.ttl(key)
-  }
-
-  async quit(): Promise<'OK'> {
-    return this.client.quit()
-  }
-
-  async testConnection() {
-    await this.client.ping()
-    console.log('Redis-Verbindung erfolgreich getestet')
-  }
-
-  async setScanStatus(scanId: string, status: ScanStatus, ttl?: number) {
-    const key = `scan:${scanId}`
-    await this.client.set(key, JSON.stringify(status))
-    if (ttl) {
-      await this.client.expire(key, ttl)
+      this.setupEventListeners()
+      await this.client.connect()
+    } catch (error) {
+      this._status = 'error'
+      throw error
     }
   }
 
-  async getScanStatus(scanId: string): Promise<ScanStatus | null> {
+  public async disconnect(): Promise<void> {
+    if (!this.client || this._status === 'disconnected') return
+
+    try {
+      await this.client.quit()
+      this._status = 'disconnected'
+    } catch (error) {
+      this._status = 'error'
+      throw error
+    }
+  }
+
+  public async testConnection(): Promise<boolean> {
+    if (!this.client || this._status !== 'connected') return false
+
+    try {
+      await this.client.ping()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  public async set(key: string, value: string | number | Buffer, ttl?: number): Promise<void> {
+    if (!this.client) throw new Error('Redis client not initialized')
+
+    try {
+      const stringValue = value.toString()
+      if (ttl) {
+        await this.client.set(key, stringValue, {
+          EX: ttl
+        })
+      } else {
+        await this.client.set(key, stringValue)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public async get(key: string): Promise<string | null> {
+    if (!this.client) throw new Error('Redis client not initialized')
+
+    try {
+      return await this.client.get(key)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public async del(key: string): Promise<void> {
+    if (!this.client) throw new Error('Redis client not initialized')
+
+    try {
+      await this.client.del(key)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public async keys(pattern: string): Promise<string[]> {
+    if (!this.client) throw new Error('Redis client not initialized')
+
+    try {
+      return await this.client.keys(pattern)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public async setScanStatus(scanId: string, status: ScanStatus, ttl?: number): Promise<void> {
+    if (!this.client) {
+      await this.connect()
+    }
+
     const key = `scan:${scanId}`
-    const data = await this.client.get(key)
-    return data ? JSON.parse(data) : null
+    const value = JSON.stringify(status)
+
+    try {
+      if (ttl) {
+        await this.client.set(key, value, {
+          EX: ttl
+        })
+      } else {
+        await this.client.set(key, value)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public async getScanStatus(scanId: string): Promise<ScanStatus | null> {
+    if (!this.client) {
+      await this.connect()
+    }
+
+    try {
+      const key = `scan:${scanId}`
+      const value = await this.client.get(key)
+      return value ? JSON.parse(value) : null
+    } catch (error) {
+      throw error
+    }
+  }
+
+  public get status(): RedisStatus {
+    return this._status
   }
 } 

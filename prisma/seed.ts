@@ -135,6 +135,16 @@ async function main() {
           excludePatterns: [],
           chunkSize: 500,  // Reduziert für präzisere Chunks
           temperature: 0.3,  // Noch konsistentere Antworten
+          maxTokens: 1000,
+          systemPrompt: "Du bist ein hilfreicher Assistent. Nutze die bereitgestellten Informationen, um präzise und hilfreiche Antworten zu geben. Wenn du nach deiner Identität gefragt wirst, antworte basierend auf den Dokumenten.",
+          userPrompt: "Basierend auf den folgenden Informationen, beantworte bitte die Frage: {question}\n\nKontext:\n{context}",
+          followupPrompt: "Möchtest du mehr Details zu einem bestimmten Aspekt erfahren?",
+          searchConfig: {
+            maxResults: 5,
+            minScore: 0.7,
+            useCache: true,
+            timeout: 3000
+          },
           reindexInterval: 24,
           maxTokensPerRequest: 400,
           maxPages: 100,
@@ -161,6 +171,7 @@ async function main() {
   // Erstelle Default Template
   await prisma.template.create({
     data: {
+      id: 'cm6x3ocgb0004ywzwmo65dr04',
       name: 'Demo Template',
       type: 'NEUTRAL',
       active: true,
@@ -220,27 +231,119 @@ async function main() {
         font: 'Inter'
       }),
       jsonBot: JSON.stringify({
-        type: 'examples',
-        examples: [
-          {
-            question: 'Wie funktioniert ihr CMS?',
-            answer: 'Unser CMS nutzt KI-gestützte Analyse, um Ihre Inhalte automatisch zu kategorisieren und zu optimieren. Sie können in Echtzeit mit Ihrem Team zusammenarbeiten und erhalten intelligente Vorschläge zur Verbesserung.',
-            context: 'CMS-Funktionen',
-            type: 'info'
+        type: 'smart-search',
+        smartSearch: {
+          provider: 'openai',
+          urls: [],
+          temperature: 0.3,
+          maxTokens: 1000,
+          systemPrompt: 'Du bist ein hilfreicher Assistent der AOK, der Fragen basierend auf den bereitgestellten Dokumenten beantwortet. Antworte präzise und faktenbasiert.',
+          userPrompt: 'Beantworte die folgende Frage basierend auf dem Kontext: {question}\n\nKontext:\n{context}',
+          followupPrompt: 'Hast du noch weitere Fragen zu diesem Thema?',
+          pinecone: {
+            indexName: 'dialog-engine',
+            environment: 'gcp-europe-west4-de1d'
           },
-          {
-            question: 'Was kann die KI-gestützte Analyse?',
-            answer: 'Die KI-gestützte Analyse kategorisiert Ihre Inhalte automatisch, erkennt Zusammenhänge und gibt Ihnen wertvolle Einblicke zur Optimierung. Sie hilft dabei, Ihre Inhalte besser zu strukturieren und für Besucher zugänglicher zu machen.',
-            context: 'KI-Analyse',
-            type: 'info'
+          excludePatterns: ['/admin/*', '/wp-*', '*.pdf', '/wp-json/*', '/api/*'],
+          chunkSize: 500,
+          reindexInterval: 24,
+          maxTokensPerRequest: 1000,
+          maxPages: 100,
+          useCache: true,
+          similarityThreshold: 0.7
+        },
+        handlers: {
+          'aok-medical': {
+            type: 'aok-medical',
+            active: true,
+            metadata: {
+              keyTopics: ['Krankheit', 'Symptome', 'Behandlung', 'Therapie', 'Diagnose'],
+              entities: ['Krankheiten', 'Medikamente', 'Therapien', 'Ärzte'],
+              facts: []
+            },
+            responses: [
+              {
+                type: 'info',
+                templates: [],
+                facts: [],
+                content: '',
+                context: 'medical'
+              }
+            ],
+            settings: {
+              matchThreshold: 0.7,
+              contextWindow: 3,
+              maxTokens: 1000,
+              dynamicResponses: true,
+              includeLinks: true,
+              includeContact: true,
+              includeSteps: true,
+              includePrice: false,
+              includeAvailability: false,
+              useExactMatches: false
+            }
           },
-          {
-            question: 'Wie funktioniert die Echtzeit-Collaboration?',
-            answer: 'Mit unserer Echtzeit-Collaboration können Sie und Ihr Team gleichzeitig an Inhalten arbeiten. Änderungen werden sofort sichtbar, und Sie können direkt Feedback geben. Das macht die Zusammenarbeit effizienter und produktiver.',
-            context: 'Collaboration',
-            type: 'info'
+          'aok-prevention': {
+            type: 'aok-prevention',
+            active: true,
+            metadata: {
+              keyTopics: ['Vorsorge', 'Prävention', 'Gesundheit', 'Früherkennung'],
+              entities: ['Vorsorgeuntersuchungen', 'Gesundheitskurse', 'Impfungen'],
+              facts: []
+            },
+            responses: [
+              {
+                type: 'info',
+                templates: [],
+                facts: [],
+                content: '',
+                context: 'prevention'
+              }
+            ],
+            settings: {
+              matchThreshold: 0.7,
+              contextWindow: 3,
+              maxTokens: 1000,
+              dynamicResponses: true,
+              includeLinks: true,
+              includeContact: true,
+              includeSteps: true,
+              includePrice: true,
+              includeAvailability: true,
+              useExactMatches: false
+            }
+          },
+          'aok-service': {
+            type: 'aok-service',
+            active: true,
+            metadata: {
+              keyTopics: ['Service', 'Beratung', 'Antrag', 'Leistung'],
+              entities: ['Geschäftsstellen', 'Berater', 'Formulare'],
+              facts: []
+            },
+            responses: [
+              {
+                type: 'info',
+                templates: [],
+                facts: [],
+                content: '',
+                context: 'service'
+              }
+            ],
+            settings: {
+              matchThreshold: 0.7,
+              contextWindow: 3,
+              maxTokens: 1000,
+              dynamicResponses: true,
+              includeLinks: true,
+              includeContact: true,
+              includeSteps: true,
+              includePrice: false,
+              includeAvailability: false,
+              useExactMatches: false
+            }
           }
-        ]
+        }
       }),
       jsonMeta: JSON.stringify({
         title: 'Dialog Engine Demo',

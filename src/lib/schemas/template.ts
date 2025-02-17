@@ -186,12 +186,45 @@ export const smartSearchSchema = z.object({
   apiEndpoint: z.string()
 })
 
+export const pineconeSchema = z.object({
+  indexName: z.string(),
+  namespace: z.string(),
+  settings: z.object({
+    dimension: z.number(),
+    metric: z.enum(['cosine', 'euclidean', 'dotproduct']),
+    pods: z.number(),
+    replicas: z.number(),
+    pod_type: z.string()
+  })
+})
+
 // Bot configuration schema
 export const botSchema = z.object({
-  type: z.enum(['examples', 'flowise', 'smart-search']),
-  examples: z.array(exampleSchema),
-  flowiseId: z.string().optional(),
-  smartSearch: smartSearchSchema.optional()
+  type: z.enum(['smart-search', 'flowise', 'aok-handler']),
+  smartSearch: z.object({
+    urls: z.array(z.string()),
+    excludePatterns: z.array(z.string()),
+    chunkSize: z.number(),
+    temperature: z.number(),
+    maxTokens: z.number(),
+    systemPrompt: z.string(),
+    userPrompt: z.string(),
+    followupPrompt: z.string(),
+    pinecone: z.object({
+      indexName: z.string(),
+      environment: z.string()
+    })
+  }).optional(),
+  flowise: z.object({
+    flowId: z.string(),
+    apiKey: z.string()
+  }).optional(),
+  aokHandler: z.object({
+    pineconeApiKey: z.string(),
+    pineconeEnvironment: z.string(),
+    pineconeIndex: z.string(),
+    openaiApiKey: z.string()
+  }).optional()
 })
 
 // Meta schema
@@ -316,6 +349,40 @@ export const schemaFieldSchema: z.ZodType<SchemaField> = z.lazy(() => z.object({
   }).optional()
 }).strict());
 
+export interface Handler {
+  type: string
+  active: boolean
+  metadata: {
+    keyTopics: string[]
+    [key: string]: any
+  }
+  responses: Array<{
+    type: string
+    content: string
+  }>
+  settings: {
+    matchThreshold: number
+    contextWindow: number
+    [key: string]: any
+  }
+}
+
+const handlerSchema = z.object({
+  type: z.string(),
+  active: z.boolean(),
+  metadata: z.object({
+    keyTopics: z.array(z.string()),
+  }).catchall(z.any()),
+  responses: z.array(z.object({
+    type: z.string(),
+    content: z.string()
+  })),
+  settings: z.object({
+    matchThreshold: z.number(),
+    contextWindow: z.number()
+  }).catchall(z.any())
+})
+
 export const extractionSchemaSchema = z.object({
   id: z.string(),
   templateId: z.string(),
@@ -323,6 +390,7 @@ export const extractionSchemaSchema = z.object({
   description: z.string(),
   version: z.number().default(1),
   fields: z.array(schemaFieldSchema),
+  handlers: z.array(handlerSchema),
   createdAt: z.date(),
   updatedAt: z.date()
 })

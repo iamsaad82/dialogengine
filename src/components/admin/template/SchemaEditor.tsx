@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Plus, Trash2, GripVertical, InfoIcon, FileText, ListChecks, Save, Building2, ShoppingBag, Calendar, MapPin, Phone, FileQuestion, Download, Info, Video } from 'lucide-react'
-import type { SchemaField, ExtractionSchema } from '@/lib/schemas/template'
+import type { SchemaField, ExtractionSchema as BaseExtractionSchema } from '@/lib/schemas/template'
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -43,6 +43,28 @@ interface DefaultSchema {
   icon: any
   isDefault: boolean
   fields: SchemaField[]
+}
+
+interface Handler {
+  type: string
+  active: boolean
+  metadata: {
+    keyTopics: string[]
+    [key: string]: any
+  }
+  responses: Array<{
+    type: string
+    content: string
+  }>
+  settings: {
+    matchThreshold: number
+    contextWindow: number
+    [key: string]: any
+  }
+}
+
+interface ExtractionSchema extends BaseExtractionSchema {
+  handlers: Handler[]
 }
 
 const DEFAULT_SCHEMAS: DefaultSchema[] = [
@@ -317,6 +339,7 @@ export function SchemaEditor({ templateId }: SchemaEditorProps) {
           description: 'Automatisch aktivierte Standard-Vorlagen',
           version: 1,
           fields: defaultFields,
+          handlers: [],
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -326,7 +349,10 @@ export function SchemaEditor({ templateId }: SchemaEditorProps) {
       if (!response.ok) throw new Error('Fehler beim Laden')
       
       const data = await response.json()
-      setSchema(data.schema)
+      setSchema({
+        ...data.schema,
+        handlers: data.schema.handlers || []
+      })
     } catch (error) {
       console.error('Fehler beim Laden des Schemas:', error)
       toast({
@@ -474,6 +500,62 @@ export function SchemaEditor({ templateId }: SchemaEditorProps) {
         fields: updateFields(prev.fields, path)
       }
     })
+  }
+
+  const updateHandler = async (handler: Handler) => {
+    if (!schema) return
+
+    setSchema(prev => {
+      if (!prev) return prev
+
+      const handlers = [...(prev.handlers || [])]
+      const index = handlers.findIndex(h => h.type === handler.type)
+      
+      if (index >= 0) {
+        handlers[index] = handler
+      } else {
+        handlers.push(handler)
+      }
+
+      return {
+        ...prev,
+        handlers
+      }
+    })
+
+    setHasChanges(true)
+  }
+
+  const removeHandler = (type: string) => {
+    if (!schema) return
+
+    setSchema(prev => {
+      if (!prev) return prev
+
+      return {
+        ...prev,
+        handlers: (prev.handlers || []).filter(h => h.type !== type)
+      }
+    })
+
+    setHasChanges(true)
+  }
+
+  const toggleHandler = (type: string) => {
+    if (!schema) return
+
+    setSchema(prev => {
+      if (!prev) return prev
+
+      return {
+        ...prev,
+        handlers: (prev.handlers || []).map(h => 
+          h.type === type ? { ...h, active: !h.active } : h
+        )
+      }
+    })
+
+    setHasChanges(true)
   }
 
   const renderField = (field: SchemaField, path: string[], depth = 0) => {
@@ -682,6 +764,7 @@ export function SchemaEditor({ templateId }: SchemaEditorProps) {
         <TabsList>
           <TabsTrigger value="vorlagen">Vorlagen</TabsTrigger>
           <TabsTrigger value="editor">Schema-Editor</TabsTrigger>
+          <TabsTrigger value="handler">Handler</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vorlagen" className="space-y-4">
@@ -920,6 +1003,83 @@ export function SchemaEditor({ templateId }: SchemaEditorProps) {
               <Plus className="mr-2 h-4 w-4" />
               Neues Feld hinzufügen
             </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="handler" className="space-y-4">
+          <Alert>
+            <InfoIcon className="h-4 w-4" />
+            <AlertDescription>
+              Verwalten Sie hier die automatisch generierten Handler für verschiedene Content-Typen.
+              Handler bestimmen, wie Inhalte verarbeitet und Antworten generiert werden.
+            </AlertDescription>
+          </Alert>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(schema.handlers || []).map((handler: Handler, index: number) => (
+              <Card key={index}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-5 w-5" />
+                      <h3 className="font-semibold">{handler.type}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleHandler(handler.type)}
+                      >
+                        <Badge variant={handler.active ? "default" : "secondary"}>
+                          {handler.active ? "Aktiv" : "Inaktiv"}
+                        </Badge>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeHandler(handler.type)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Generiert für {handler.metadata?.keyTopics?.length || 0} Schlüsselthemen
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <span className="font-medium">Antworttypen:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {(handler.responses || []).map((response, idx: number) => (
+                          <Badge key={idx} variant="outline">
+                            {response.type}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Schlüsselthemen:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {(handler.metadata?.keyTopics || []).map((topic: string, idx: number) => (
+                          <Badge key={idx} variant="outline">
+                            {topic}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Einstellungen:</span>
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        <div>Schwellwert: {handler.settings?.matchThreshold || 0.7}</div>
+                        <div>Kontext: {handler.settings?.contextWindow || 3}</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
       </Tabs>

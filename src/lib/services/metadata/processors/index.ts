@@ -1,0 +1,5 @@
+export { MedicalMetadataProcessor } from './medical'
+export { InsuranceMetadataProcessor } from './insurance'
+export { CommerceMetadataProcessor } from './commerce'
+export { ShoppingCenterProcessor } from './shopping-center'
+export { CityAdministrationProcessor } from './city-administration' 

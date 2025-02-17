@@ -611,13 +611,31 @@ export class ContentVectorizer {
       console.log('Speichere in Pinecone...')
       const index = this.getPineconeIndex()
 
+      // Extrahiere Link-Informationen aus den Metadaten
+      const links = metadata.links || {}
+      
       await index.upsert([{
         id: `${this.templateId}-${Date.now()}`,
         values: embedding,
         metadata: {
           ...metadata,
           templateId: this.templateId,
-          content
+          content,
+          // Speichere Links als JSON-Strings
+          links_internal: JSON.stringify(links.internal?.map((link: { url: string; title: string }) => ({
+            url: link.url,
+            title: link.title
+          })) || []),
+          links_external: JSON.stringify(links.external?.map((link: { url: string; domain: string; trust: number }) => ({
+            url: link.url,
+            domain: link.domain,
+            trust: link.trust
+          })) || []),
+          links_media: JSON.stringify(links.media?.map((media: { url: string; type: string; description: string }) => ({
+            url: media.url,
+            type: media.type,
+            description: media.description
+          })) || [])
         }
       }])
 
@@ -654,6 +672,53 @@ export class ContentVectorizer {
     }
   }
 
+  /**
+   * Effizientes Update von Dokumenten basierend auf der Template-ID
+   */
+  public async efficientUpdate(
+    documentId: string,
+    newContent: string,
+    metadata: DocumentMetadata,
+    compareHash?: string
+  ): Promise<void> {
+    try {
+      const index = this.pinecone.index(this.indexName)
+      
+      // Hole existierenden Vektor
+      const existingVectors = await index.fetch([documentId])
+      const existingVector = existingVectors.records[documentId]
+      
+      if (!existingVector) {
+        // Dokument existiert nicht - erstelle neu
+        await this.vectorizeContent(newContent, {
+          ...metadata,
+          templateId: this.templateId
+        })
+        return
+      }
+
+      // Prüfe Hash wenn vorhanden
+      if (compareHash && existingVector.metadata?.contentHash === compareHash) {
+        // Content unverändert - update nur Metadata
+        await index.update({
+          id: documentId,
+          metadata: {
+            ...metadata,
+            templateId: this.templateId,
+            lastUpdated: new Date().toISOString()
+          }
+        })
+        return
+      }
+
+      // Content hat sich geändert - Update mit neuem Content
+      await this.updateDocument(documentId, newContent, metadata)
+    } catch (error) {
+      console.error('Fehler beim effizienten Update:', error)
+      throw error
+    }
+  }
+
   public async updateDocument(
     documentId: string,
     newContent: string,
@@ -662,17 +727,22 @@ export class ContentVectorizer {
     try {
       const index = this.pinecone.index(this.indexName)
       
+      // Generiere Hash für Content-Vergleich
+      const contentHash = await this.generateContentHash(newContent)
+      
       // Prüfe ob sich der Inhalt geändert hat
       const existingVectors = await index.fetch([documentId])
-      const existingContent = existingVectors.records[documentId]?.metadata?.content
+      const existingVector = existingVectors.records[documentId]
       
-      if (existingContent === newContent) {
+      if (existingVector?.metadata?.contentHash === contentHash) {
         // Nur Metadata aktualisieren wenn sich der Inhalt nicht geändert hat
         await index.update({
           id: documentId,
           metadata: {
             ...metadata,
-            templateId: this.templateId
+            templateId: this.templateId,
+            contentHash,
+            lastUpdated: new Date().toISOString()
           }
         })
         return
@@ -695,7 +765,9 @@ export class ContentVectorizer {
           url: metadata.url,
           title: metadata.title,
           text: metadata.text,
-          contentType: metadata.contentType
+          contentType: metadata.contentType,
+          contentHash,
+          lastUpdated: new Date().toISOString()
         }
       }))
 
@@ -712,6 +784,14 @@ export class ContentVectorizer {
       console.error('Fehler beim Update:', error)
       throw error
     }
+  }
+
+  private async generateContentHash(content: string): Promise<string> {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(content)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }
 
   private async findChunkIds(documentId: string): Promise<string[]> {

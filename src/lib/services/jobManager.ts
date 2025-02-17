@@ -5,15 +5,58 @@ import { nanoid } from 'nanoid'
 export class JobManager {
   private redis: Redis
   private readonly keyPrefix = 'jobs:'
+  private isConnected: boolean = false
 
   constructor(redisUrl: string) {
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       retryStrategy: (times) => {
-        if (times > 3) return null
-        return Math.min(times * 1000, 3000)
-      }
+        const delay = Math.min(times * 100, 3000)
+        console.log(`[Redis] Verbindungsversuch ${times}, nächster Versuch in ${delay}ms`)
+        return delay
+      },
+      reconnectOnError: (err) => {
+        console.error('[Redis] Verbindungsfehler:', err)
+        return true
+      },
+      enableReadyCheck: true,
+      connectTimeout: 10000,
+      lazyConnect: true
     })
+
+    this.redis.on('connect', () => {
+      console.log('[Redis] Verbindung hergestellt')
+      this.isConnected = true
+    })
+
+    this.redis.on('error', (error) => {
+      console.error('[Redis] Fehler:', error)
+      this.isConnected = false
+    })
+
+    this.redis.on('close', () => {
+      console.log('[Redis] Verbindung geschlossen')
+      this.isConnected = false
+    })
+
+    // Initialisiere die Verbindung
+    this.connect()
+  }
+
+  private async connect() {
+    if (!this.isConnected) {
+      try {
+        await this.redis.connect()
+      } catch (error) {
+        console.error('[Redis] Verbindungsfehler beim Start:', error)
+      }
+    }
+  }
+
+  private async ensureConnection() {
+    if (!this.isConnected) {
+      await this.connect()
+    }
   }
 
   private getJobKey(jobId: string): string {
@@ -48,15 +91,41 @@ export class JobManager {
   }
 
   async getJob(jobId: string): Promise<BatchJob | null> {
-    const jobData = await this.redis.get(this.getJobKey(jobId))
-    if (!jobData) return null
-    return JSON.parse(jobData)
+    console.log('[JobManager] Hole Job:', jobId)
+    const key = this.getJobKey(jobId)
+    const jobData = await this.redis.get(key)
+    if (!jobData) {
+      console.log('[JobManager] Job nicht gefunden:', jobId)
+      return null
+    }
+    const job = JSON.parse(jobData)
+    console.log('[JobManager] Job gefunden:', job.status)
+    return job
   }
 
   async updateJob(update: JobUpdate): Promise<BatchJob> {
-    const job = await this.getJob(update.jobId)
-    if (!job) throw new Error('Job nicht gefunden')
+    console.log('[JobManager] Update-Anfrage erhalten:', {
+      jobId: update.jobId,
+      phase: update.phase,
+      progress: update.progress
+    })
 
+    // Validiere die Update-Daten
+    if (!update.jobId || !update.phase) {
+      throw new Error('Ungültige Update-Daten')
+    }
+
+    const job = await this.getJob(update.jobId)
+    if (!job) {
+      console.error('[JobManager] Job nicht gefunden:', update.jobId)
+      throw new Error('Job nicht gefunden')
+    }
+
+    console.log('[JobManager] Aktueller Job-Status:', {
+      phase: job.status.phase,
+      progress: job.status.progress
+    })
+    
     const updatedJob: BatchJob = {
       ...job,
       status: {
@@ -64,25 +133,58 @@ export class JobManager {
         phase: update.phase,
         progress: update.progress,
         currentFile: update.currentFile,
+        processedFiles: update.phase === 'completed' ? job.files.length : job.status.processedFiles,
         updatedAt: new Date(),
         errors: update.error 
           ? [...job.status.errors, update.error]
           : job.status.errors
+      },
+      completedAt: update.phase === 'completed' ? new Date() : job.completedAt
+    }
+
+    const key = this.getJobKey(job.id)
+    
+    // Maximal 3 Versuche für das Speichern
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[JobManager] Speicherversuch ${attempt} für Job:`, key)
+        
+        await this.redis.set(
+          key,
+          JSON.stringify(updatedJob),
+          'EX',
+          60 * 60 * 24
+        )
+        
+        // Verifiziere das Update
+        const savedJob = await this.getJob(update.jobId)
+        if (!savedJob || savedJob.status.phase !== update.phase) {
+          if (attempt === 3) {
+            throw new Error('Status-Update konnte nicht verifiziert werden')
+          }
+          console.warn(`[JobManager] Verifizierung fehlgeschlagen, Versuch ${attempt}`)
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt))
+          continue
+        }
+        
+        console.log('[JobManager] Job erfolgreich aktualisiert:', {
+          jobId: savedJob.id,
+          phase: savedJob.status.phase,
+          progress: savedJob.status.progress
+        })
+        
+        return updatedJob
+      } catch (error) {
+        if (attempt === 3) {
+          console.error('[JobManager] Alle Speicherversuche fehlgeschlagen:', error)
+          throw error
+        }
+        console.warn(`[JobManager] Speicherversuch ${attempt} fehlgeschlagen:`, error)
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt))
       }
     }
 
-    if (update.phase === 'completed') {
-      updatedJob.completedAt = new Date()
-    }
-
-    await this.redis.set(
-      this.getJobKey(job.id),
-      JSON.stringify(updatedJob),
-      'EX',
-      60 * 60 * 24
-    )
-
-    return updatedJob
+    throw new Error('Unerwarteter Fehler beim Speichern des Jobs')
   }
 
   async listJobs(templateId: string): Promise<BatchJob[]> {

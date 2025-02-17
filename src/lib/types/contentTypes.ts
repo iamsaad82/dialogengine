@@ -1,148 +1,92 @@
-import { z } from 'zod'
+export type ContentType = 
+  | 'city-administration'
+  | 'medical'
+  | 'insurance'
+  | 'shopping-center'
+  | 'default'
+  | 'aok-medical'           // Medizinische Leistungen
+  | 'aok-prevention'        // Vorsorge und Prävention
+  | 'aok-insurance'         // Versicherungsleistungen
+  | 'aok-service'           // Service-Angebote
+  | 'aok-bonus'            // Bonusprogramme
+  | 'aok-curaplan'         // Curaplan-Programme
+  | 'aok-family'           // Familienleistungen
+  | 'aok-digital'          // Digitale Angebote
+  | 'aok-emergency'        // Notfall und Akut
+  | 'aok-contact';         // Kontakt und Beratung
 
-// Content-Type Enum
 export const ContentTypeEnum = {
-  // Informative Inhalte
-  INFO: 'info',
-  SERVICE: 'service',
-  PRODUCT: 'product',
-  EVENT: 'event',
-  
-  // Orte und Kontakte
-  LOCATION: 'location',
-  CONTACT: 'contact',
-  
-  // Medien und Ressourcen
-  VIDEO: 'video',
-  DOWNLOAD: 'download',
-  LINK: 'link',
-  
-  // Spezielle Inhalte
-  FAQ: 'faq',
-  MEDICAL: 'medical',
-  INSURANCE: 'insurance',
-  
-  // Navigation und Prozesse
-  NAVIGATION: 'navigation',
-  PROCESS: 'process',
-  FORM: 'form',
-  
-  // System und Status
-  ERROR: 'error',
-  WAIT: 'wait'
-} as const
+  CITY_ADMINISTRATION: 'city-administration' as ContentType,
+  MEDICAL: 'medical' as ContentType,
+  INSURANCE: 'insurance' as ContentType,
+  SHOPPING_CENTER: 'shopping-center' as ContentType,
+  DEFAULT: 'default' as ContentType,
+  AOK_MEDICAL: 'aok-medical' as ContentType,
+  AOK_PREVENTION: 'aok-prevention' as ContentType,
+  AOK_INSURANCE: 'aok-insurance' as ContentType,
+  AOK_SERVICE: 'aok-service' as ContentType,
+  AOK_BONUS: 'aok-bonus' as ContentType,
+  AOK_CURAPLAN: 'aok-curaplan' as ContentType,
+  AOK_FAMILY: 'aok-family' as ContentType,
+  AOK_DIGITAL: 'aok-digital' as ContentType,
+  AOK_EMERGENCY: 'aok-emergency' as ContentType,
+  AOK_CONTACT: 'aok-contact' as ContentType
+} as const;
 
-export type ContentType = typeof ContentTypeEnum[keyof typeof ContentTypeEnum]
-
-// Zod Schema für Content-Type Validierung
-export const contentTypeSchema = z.enum([
-  'info',
-  'service',
-  'product',
-  'event',
-  'location',
-  'video',
-  'link',
-  'contact',
-  'faq',
-  'download',
+export const CONTENT_TYPES: ContentType[] = [
+  'city-administration',
   'medical',
   'insurance',
-  'wait',
-  'process',
-  'form',
-  'navigation'
-])
+  'shopping-center',
+  'default',
+  'aok-medical',
+  'aok-prevention',
+  'aok-insurance',
+  'aok-service',
+  'aok-bonus',
+  'aok-curaplan',
+  'aok-family',
+  'aok-digital',
+  'aok-emergency',
+  'aok-contact'
+]
 
-// Metadata Interface für jeden Content-Type
-export interface ContentMetadata {
-  title?: string
-  description?: string
-  topics?: string[]
-  type?: string
-  context?: {
-    isFollowUp?: boolean
-    previousContext?: any
-    aspects?: string[]
-  }
-  requirements?: string[]
-  coverage?: {
-    included?: string[]
-    excluded?: string[]
-    conditions?: string[]
-  }
-  [key: string]: any
+export function isValidContentType(type: string): type is ContentType {
+  return CONTENT_TYPES.includes(type as ContentType)
 }
 
-// Interface für Content-Type-Erkennung
-export type ContentTypeResult = {
-  type: ContentType
-  confidence: number
-  metadata: ContentMetadata
+export const ContentTypeLabels: Record<ContentType, string> = {
+  'city-administration': 'Stadtverwaltung',
+  'medical': 'Medizin',
+  'insurance': 'Versicherung',
+  'shopping-center': 'Einkaufszentrum',
+  'default': 'Standard',
+  'aok-medical': 'Medizinische Informationen',
+  'aok-insurance': 'Versicherungsleistungen',
+  'aok-prevention': 'Vorsorge & Prävention',
+  'aok-service': 'Service & Beratung',
+  'aok-bonus': 'Bonusprogramme',
+  'aok-curaplan': 'Curaplan Programme',
+  'aok-family': 'Familie & Kinder',
+  'aok-digital': 'Digitale Angebote',
+  'aok-emergency': 'Notfall & Bereitschaft',
+  'aok-contact': 'Kontakt & Support'
 }
 
-// Content-Type-Error Interface
-export type ContentTypeError = {
-  type: 'error'
-  error: string
+export const ContentTypeDescriptions: Record<ContentType, string> = {
+  'city-administration': 'Informationen zur Stadtverwaltung',
+  'medical': 'Allgemeine medizinische Informationen',
+  'insurance': 'Allgemeine Versicherungsinformationen',
+  'shopping-center': 'Informationen zum Einkaufszentrum',
+  'default': 'Standardinformationen',
+  'aok-medical': 'Informationen zu Krankheiten, Behandlungen und medizinischen Leistungen',
+  'aok-insurance': 'Details zu Versicherungsleistungen, Tarifen und Zusatzversicherungen',
+  'aok-prevention': 'Vorsorgeangebote, Gesundheitskurse und Präventionsmaßnahmen',
+  'aok-service': 'Allgemeine Serviceleistungen und Beratungsangebote',
+  'aok-bonus': 'Informationen zu Bonusprogrammen und Prämien',
+  'aok-curaplan': 'Spezielle Programme für chronisch kranke Menschen',
+  'aok-family': 'Angebote und Leistungen für Familien und Kinder',
+  'aok-digital': 'Online-Services, Apps und digitale Gesundheitsangebote',
+  'aok-emergency': 'Informationen für Notfälle und ärztliche Bereitschaftsdienste',
+  'aok-contact': 'Kontaktmöglichkeiten und Supportinformationen'
 }
-
-// Utility-Funktionen
-export const isValidContentType = (type: string): type is ContentType => {
-  return Object.values(ContentTypeEnum).includes(type as ContentType)
-}
-
-export function getDefaultMetadata(type: ContentType): ContentMetadata {
-  const baseMetadata: ContentMetadata = {
-    title: '',
-    description: ''
-  }
-
-  switch (type) {
-    case ContentTypeEnum.LINK:
-      return {
-        ...baseMetadata,
-        linkType: 'internal',
-        targetUrl: '',
-        noFollow: false,
-        openInNewTab: false
-      }
-    case ContentTypeEnum.VIDEO:
-      return {
-        ...baseMetadata,
-        videoType: 'youtube',
-        videoId: '',
-        duration: '',
-        captions: false
-      }
-    case ContentTypeEnum.PRODUCT:
-      return {
-        ...baseMetadata,
-        productId: '',
-        price: {
-          amount: 0,
-          currency: 'EUR'
-        },
-        availability: 'in_stock'
-      }
-    case ContentTypeEnum.EVENT:
-      return {
-        ...baseMetadata,
-        eventType: 'conference',
-        startDate: new Date().toISOString(),
-        location: {
-          type: 'physical'
-        }
-      }
-    case ContentTypeEnum.WAIT:
-      return {
-        ...baseMetadata,
-        waitType: 'loading',
-        waitDuration: 0,
-        progressIndicator: true,
-        cancelable: true
-      }
-    default:
-      return baseMetadata
-  }
-} 

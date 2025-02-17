@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { type NextRequest } from 'next/server'
 
 const createDefaultContent = () => ({
   hero: {
@@ -71,76 +72,65 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const data = await req.json()
+    const body = await request.json()
     
-    // Validiere die Subdomain (nur Kleinbuchstaben, Zahlen und Bindestriche)
-    const subdomain = (data.subdomain || '').toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-
-    // Prüfe ob die Subdomain bereits existiert
-    if (subdomain) {
-      const existing = await prisma.template.findFirst({
-        where: { subdomain }
-      })
-      if (existing) {
-        return NextResponse.json(
-          { error: "Diese Subdomain wird bereits verwendet" },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Erstelle Standardwerte für alle JSON-Felder
-    const defaultContent = createDefaultContent()
-    const defaultBranding = createDefaultBranding()
-    const defaultBot = createDefaultBot()
-    const defaultMeta = createDefaultMeta(data.name || 'Neues Template')
-
-    // Validiere und parse die eingehenden JSON-Daten
-    let content, branding, bot, meta
-    try {
-      content = data.jsonContent ? JSON.parse(data.jsonContent) : defaultContent
-    } catch (e) {
-      content = defaultContent
-    }
-    try {
-      branding = data.jsonBranding ? JSON.parse(data.jsonBranding) : defaultBranding
-    } catch (e) {
-      branding = defaultBranding
-    }
-    try {
-      bot = data.jsonBot ? JSON.parse(data.jsonBot) : defaultBot
-    } catch (e) {
-      bot = defaultBot
-    }
-    try {
-      meta = data.jsonMeta ? JSON.parse(data.jsonMeta) : defaultMeta
-    } catch (e) {
-      meta = defaultMeta
-    }
-
     const template = await prisma.template.create({
       data: {
-        name: data.name || 'Neues Template',
-        type: data.type || 'NEUTRAL',
-        subdomain: subdomain,
+        name: body.name || 'Neues Template',
+        type: 'CUSTOM',
         active: true,
-        jsonContent: JSON.stringify(content),
-        jsonBranding: JSON.stringify(branding),
-        jsonBot: JSON.stringify(bot),
-        jsonMeta: JSON.stringify(meta)
+        subdomain: body.subdomain || 'test',
+        jsonBot: JSON.stringify({
+          handlers: {
+            medical: [{
+              type: 'medical',
+              active: true,
+              metadata: {
+                keyTopics: ['Impfung', 'Gesundheit', 'Vorsorge'],
+                entities: ['Arzt', 'Patient', 'Krankenkasse'],
+                facts: []
+              },
+              responses: [
+                {
+                  type: 'dynamic',
+                  templates: [
+                    "Basierend auf den medizinischen Informationen: {{facts}}",
+                    "Die wichtigsten medizinischen Fakten dazu sind: {{facts}}",
+                    "Aus medizinischer Sicht ist folgendes relevant: {{facts}}"
+                  ],
+                  context: "Medizinische Standardantwort"
+                },
+                {
+                  type: 'contact',
+                  templates: [
+                    "Sie können einen Termin vereinbaren: {{facts}}",
+                    "Für eine Terminvereinbarung: {{facts}}",
+                    "Kontaktieren Sie uns: {{facts}}"
+                  ],
+                  context: "Kontaktinformationen"
+                }
+              ],
+              settings: {
+                matchThreshold: 0.7,
+                contextWindow: 3,
+                maxTokens: 150,
+                dynamicResponses: true,
+                includeContact: true,
+                includeSteps: true
+              }
+            }]
+          }
+        })
       }
     })
 
-    return NextResponse.json(template)
+    return NextResponse.json({ success: true, template })
   } catch (error) {
-    console.error('POST error:', error)
+    console.error('Fehler beim Erstellen des Templates:', error)
     return NextResponse.json(
-      { error: "Fehler beim Erstellen des Templates" },
+      { error: 'Interner Server-Fehler' },
       { status: 500 }
     )
   }

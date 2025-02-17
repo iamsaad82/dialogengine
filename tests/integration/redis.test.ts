@@ -1,16 +1,16 @@
-import { describe, expect, test, beforeAll, afterAll } from '@jest/globals'
+import { describe, expect, test, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals'
 import { RedisClient } from '../../src/lib/redis'
 import { ScanStatus } from '../../src/types'
 
 describe('Redis Integration', () => {
   let client: RedisClient
 
-  beforeAll(async () => {
-    client = new RedisClient()
+  beforeEach(async () => {
+    client = new RedisClient(process.env.REDIS_TEST_URL || 'redis://localhost:6379')
     await client.connect()
   })
 
-  afterAll(async () => {
+  afterEach(async () => {
     await client.disconnect()
   })
 
@@ -57,5 +57,15 @@ describe('Redis Integration', () => {
     await new Promise(resolve => setTimeout(resolve, 1100))
     const expiredStatus = await client.getScanStatus(scanId)
     expect(expiredStatus).toBeNull()
+  })
+
+  it('sollte Daten speichern und abrufen können', async () => {
+    const key = 'test-key'
+    const value = { data: 'test-value' }
+
+    await client.set(key, JSON.stringify(value))
+    const result = await client.get(key)
+
+    expect(JSON.parse(result as string)).toEqual(value)
   })
 }) 
