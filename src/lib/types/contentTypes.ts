@@ -1,4 +1,4 @@
-export type ContentType = 
+export type ContentCategory = 
   | 'city-administration'
   | 'medical'
   | 'insurance'
@@ -13,25 +13,34 @@ export type ContentType =
   | 'aok-family'           // Familienleistungen
   | 'aok-digital'          // Digitale Angebote
   | 'aok-emergency'        // Notfall und Akut
-  | 'aok-contact';         // Kontakt und Beratung
+  | 'aok-contact'          // Kontakt und Beratung
+
+export type ContentType = 'info' | 'warning' | 'error' | 'success'
+
+export const ContentTypes = {
+  Info: 'info' as ContentType,
+  Warning: 'warning' as ContentType,
+  Error: 'error' as ContentType,
+  Success: 'success' as ContentType
+} as const
 
 export const ContentTypeEnum = {
-  CITY_ADMINISTRATION: 'city-administration' as ContentType,
-  MEDICAL: 'medical' as ContentType,
-  INSURANCE: 'insurance' as ContentType,
-  SHOPPING_CENTER: 'shopping-center' as ContentType,
-  DEFAULT: 'default' as ContentType,
-  AOK_MEDICAL: 'aok-medical' as ContentType,
-  AOK_PREVENTION: 'aok-prevention' as ContentType,
-  AOK_INSURANCE: 'aok-insurance' as ContentType,
-  AOK_SERVICE: 'aok-service' as ContentType,
-  AOK_BONUS: 'aok-bonus' as ContentType,
-  AOK_CURAPLAN: 'aok-curaplan' as ContentType,
-  AOK_FAMILY: 'aok-family' as ContentType,
-  AOK_DIGITAL: 'aok-digital' as ContentType,
-  AOK_EMERGENCY: 'aok-emergency' as ContentType,
-  AOK_CONTACT: 'aok-contact' as ContentType
-} as const;
+  CityAdministration: 'city-administration' as ContentCategory,
+  Medical: 'medical' as ContentCategory,
+  Insurance: 'insurance' as ContentCategory,
+  ShoppingCenter: 'shopping-center' as ContentCategory,
+  Default: 'default' as ContentCategory,
+  AOKMedical: 'aok-medical' as ContentCategory,
+  AOKPrevention: 'aok-prevention' as ContentCategory,
+  AOKInsurance: 'aok-insurance' as ContentCategory,
+  AOKService: 'aok-service' as ContentCategory,
+  AOKBonus: 'aok-bonus' as ContentCategory,
+  AOKCuraPlan: 'aok-curaplan' as ContentCategory,
+  AOKFamily: 'aok-family' as ContentCategory,
+  AOKDigital: 'aok-digital' as ContentCategory,
+  AOKEmergency: 'aok-emergency' as ContentCategory,
+  AOKContact: 'aok-contact' as ContentCategory
+} as const
 
 export const CONTENT_TYPES: ContentType[] = [
   'city-administration',
