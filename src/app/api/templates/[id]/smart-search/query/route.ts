@@ -30,11 +30,7 @@ export async function POST(
     const smartSearchConfig = botConfig.smartSearch || {}
     
     // Pinecone Service initialisieren
-    const pineconeService = new PineconeService({
-      apiKey: process.env.PINECONE_API_KEY || '',
-      environment: process.env.PINECONE_ENVIRONMENT || '',
-      baseIndex: process.env.PINECONE_INDEX || 'dialog-engine'
-    })
+    const pineconeService = new PineconeService()
     
     const indexName = pineconeService.getTemplateIndexName(params.id)
     
@@ -48,15 +44,16 @@ export async function POST(
     const searchConfig: SearchConfig = {
       openaiApiKey: process.env.OPENAI_API_KEY || '',
       pineconeApiKey: process.env.PINECONE_API_KEY || '',
-      pineconeIndex: indexName,
+      pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || '',
+      pineconeIndex: process.env.PINECONE_INDEX || '',
       templateId: params.id,
       language: 'de',
       temperature: smartSearchConfig.temperature || 0.7,
-      maxTokens: smartSearchConfig.maxTokens || 1000,
+      maxTokens: smartSearchConfig.maxTokens || 500,
       redis: process.env.REDIS_URL ? {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD
+        host: new URL(process.env.REDIS_URL).hostname,
+        port: parseInt(new URL(process.env.REDIS_URL).port),
+        password: new URL(process.env.REDIS_URL).password
       } : undefined,
       searchConfig: {
         maxResults: smartSearchConfig.maxResults || 5,
@@ -117,11 +114,7 @@ export async function GET(
       )
     }
 
-    const pineconeService = new PineconeService({
-      apiKey: process.env.PINECONE_API_KEY || '',
-      environment: process.env.PINECONE_ENVIRONMENT || '',
-      baseIndex: process.env.PINECONE_INDEX || 'dialog-engine'
-    })
+    const pineconeService = new PineconeService()
     
     const indexName = pineconeService.getTemplateIndexName(params.id)
 
