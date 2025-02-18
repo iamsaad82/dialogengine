@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRedisClient } from '@/lib/redis'
+import { getRedisInstance, isRedisEnabled } from '@/lib/redis'
 
 export async function GET(request: NextRequest) {
-  const redis = getRedisClient()
+  if (!isRedisEnabled()) {
+    return NextResponse.json(
+      { error: 'Redis ist nicht aktiviert' },
+      { status: 500 }
+    )
+  }
+
+  const redis = getRedisInstance()
   const templateId = request.nextUrl.searchParams.get('templateId')
 
   try {
