@@ -11,6 +11,7 @@ export interface ImageUploaderProps {
   label: string
   value: string
   onChange: (url: string) => void
+  accept?: string
   aspectRatio?: 'square' | 'landscape' | 'portrait'
   maxSize?: number // in MB
   className?: string
@@ -21,6 +22,7 @@ export function ImageUploader({
   label,
   value,
   onChange,
+  accept = 'image/jpeg,image/png,image/webp',
   aspectRatio = 'landscape',
   maxSize = 2,
   className
@@ -91,7 +93,7 @@ export function ImageUploader({
     <BaseUploader
       id={id}
       label={label}
-      accept="image/*"
+      accept={accept}
       maxSize={maxSize}
       multiple={false}
       onUpload={handleUpload}
