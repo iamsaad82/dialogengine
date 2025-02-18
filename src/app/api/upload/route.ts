@@ -8,15 +8,25 @@ const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
 export async function POST(request: Request) {
   try {
+    console.log('Starting file upload process...');
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
     if (!file) {
+      console.log('No file found in request');
       return NextResponse.json(
         { error: 'Keine Datei gefunden' },
         { status: 400 }
       );
     }
+
+    // Log file details
+    console.log('File details:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
 
     // Validierung des MIME-Types und der Dateiendung
     const fileType = file.type.toLowerCase();
@@ -25,7 +35,17 @@ export async function POST(request: Request) {
     const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(fileType);
     const isValidExtension = ALLOWED_EXTENSIONS.includes(extension);
     
+    console.log('Validation results:', {
+      fileType,
+      extension,
+      isValidMimeType,
+      isValidExtension,
+      allowedTypes: ALLOWED_IMAGE_TYPES,
+      allowedExtensions: ALLOWED_EXTENSIONS
+    });
+    
     if (!isValidMimeType && !isValidExtension) {
+      console.log('File type validation failed');
       return NextResponse.json(
         { error: 'Nur Bilder im Format JPG, JPEG, PNG oder WebP sind erlaubt' },
         { status: 400 }
@@ -33,6 +53,7 @@ export async function POST(request: Request) {
     }
 
     if (file.size > 2 * 1024 * 1024) { // 2MB
+      console.log('File size validation failed');
       return NextResponse.json(
         { error: 'Datei ist zu groß (max. 2MB)' },
         { status: 400 }
@@ -44,7 +65,11 @@ export async function POST(request: Request) {
 
     // Ensure uploads directory exists
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    console.log('Uploads directory path:', uploadsDir);
+    console.log('Directory exists:', existsSync(uploadsDir));
+
     if (!existsSync(uploadsDir)) {
+      console.log('Creating uploads directory...');
       await mkdir(uploadsDir, { recursive: true });
     }
 
@@ -53,14 +78,28 @@ export async function POST(request: Request) {
     const originalName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
     const filename = `${uniqueId}-${originalName}`;
     const filepath = join(uploadsDir, filename);
+    
+    console.log('File will be saved as:', {
+      filename,
+      fullPath: filepath
+    });
 
     // Write file
     await writeFile(filepath, buffer);
+    console.log('File successfully written to disk');
 
     // Return the URL that can be used to access the file
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    const responseUrl = `/uploads/${filename}`;
+    console.log('Returning URL:', responseUrl);
+    
+    return NextResponse.json({ url: responseUrl });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Upload error details:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error
+    });
+    
     return NextResponse.json(
       { error: 'Upload fehlgeschlagen' },
       { status: 500 }
