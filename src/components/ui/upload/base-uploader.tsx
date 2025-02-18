@@ -42,11 +42,27 @@ export function BaseUploader({
 
     // Validiere Dateitypen wenn accept gesetzt ist
     if (accept) {
-      const allowedExtensions = accept.split(',').map(ext => ext.trim().toLowerCase())
+      const allowedTypes = accept.split(',').map(type => type.trim().toLowerCase())
       const invalidFiles = files.filter(file => {
+        const fileType = file.type.toLowerCase()
+        // Prüfe MIME-Type
+        const isValidMimeType = allowedTypes.some(type => fileType === type)
+        if (isValidMimeType) return false
+
+        // Wenn MIME-Type nicht passt, prüfe Dateiendung
         const extension = '.' + file.name.split('.').pop()?.toLowerCase()
-        return !allowedExtensions.includes(extension)
+        const matchingType = allowedTypes.find(type => {
+          if (type.startsWith('image/')) {
+            // Konvertiere MIME-Types in entsprechende Endungen
+            const ext = type.replace('image/', '.')
+            return extension === ext || 
+                   (type === 'image/jpeg' && (extension === '.jpg' || extension === '.jpeg'))
+          }
+          return false
+        })
+        return !matchingType
       })
+
       if (invalidFiles.length > 0) {
         toast.error(`Ungültige Dateitypen: ${invalidFiles.map(f => f.name).join(', ')}`)
         return
@@ -69,11 +85,27 @@ export function BaseUploader({
 
     // Validiere Dateitypen wenn accept gesetzt ist
     if (accept) {
-      const allowedExtensions = accept.split(',').map(ext => ext.trim().toLowerCase())
+      const allowedTypes = accept.split(',').map(type => type.trim().toLowerCase())
       const invalidFiles = files.filter(file => {
+        const fileType = file.type.toLowerCase()
+        // Prüfe MIME-Type
+        const isValidMimeType = allowedTypes.some(type => fileType === type)
+        if (isValidMimeType) return false
+
+        // Wenn MIME-Type nicht passt, prüfe Dateiendung
         const extension = '.' + file.name.split('.').pop()?.toLowerCase()
-        return !allowedExtensions.includes(extension)
+        const matchingType = allowedTypes.find(type => {
+          if (type.startsWith('image/')) {
+            // Konvertiere MIME-Types in entsprechende Endungen
+            const ext = type.replace('image/', '.')
+            return extension === ext || 
+                   (type === 'image/jpeg' && (extension === '.jpg' || extension === '.jpeg'))
+          }
+          return false
+        })
+        return !matchingType
       })
+
       if (invalidFiles.length > 0) {
         toast.error(`Ungültige Dateitypen: ${invalidFiles.map(f => f.name).join(', ')}`)
         return
