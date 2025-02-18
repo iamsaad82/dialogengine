@@ -83,30 +83,71 @@ export function BaseUploader({
     const files = e.target.files ? Array.from(e.target.files) : []
     if (files.length === 0) return
 
+    // Debug-Logging für Dateiinformationen
+    files.forEach(file => {
+      console.log('Debug - Dateiinformationen:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified,
+        acceptedTypes: accept?.split(',').map(t => t.trim()),
+      })
+    })
+
     // Validiere Dateitypen wenn accept gesetzt ist
     if (accept) {
       const allowedTypes = accept.split(',').map(type => type.trim().toLowerCase())
+      console.log('Debug - Erlaubte Typen:', allowedTypes)
+
       const invalidFiles = files.filter(file => {
         const fileType = file.type.toLowerCase()
-        // Prüfe MIME-Type
-        const isValidMimeType = allowedTypes.some(type => fileType === type)
-        if (isValidMimeType) return false
-
-        // Wenn MIME-Type nicht passt, prüfe Dateiendung
         const extension = '.' + file.name.split('.').pop()?.toLowerCase()
-        const matchingType = allowedTypes.find(type => {
-          if (type.startsWith('image/')) {
-            // Konvertiere MIME-Types in entsprechende Endungen
-            const ext = type.replace('image/', '.')
-            return extension === ext || 
-                   (type === 'image/jpeg' && (extension === '.jpg' || extension === '.jpeg'))
-          }
-          return false
+        
+        console.log('Debug - Prüfe Datei:', {
+          fileName: file.name,
+          fileType,
+          extension,
+          allowedTypes
         })
-        return !matchingType
+
+        // Prüfe MIME-Type direkt
+        if (allowedTypes.includes(fileType)) {
+          console.log('Debug - MIME-Type ist direkt erlaubt:', fileType)
+          return false
+        }
+
+        // Prüfe Dateiendungen für Bilder
+        if (allowedTypes.some(type => type.startsWith('image/'))) {
+          // Mapping von Dateiendungen zu MIME-Types
+          const extensionMimeMap: Record<string, string[]> = {
+            '.jpg': ['image/jpeg'],
+            '.jpeg': ['image/jpeg'],
+            '.png': ['image/png'],
+            '.webp': ['image/webp']
+          }
+
+          const allowedMimeTypes = extensionMimeMap[extension]
+          if (allowedMimeTypes) {
+            const isAllowed = allowedMimeTypes.some(mime => allowedTypes.includes(mime))
+            console.log('Debug - Endungsprüfung:', {
+              extension,
+              allowedMimeTypes,
+              isAllowed
+            })
+            return !isAllowed
+          }
+        }
+
+        console.log('Debug - Datei ist nicht erlaubt:', {
+          fileName: file.name,
+          fileType,
+          extension
+        })
+        return true
       })
 
       if (invalidFiles.length > 0) {
+        console.log('Debug - Ungültige Dateien gefunden:', invalidFiles)
         toast.error(`Ungültige Dateitypen: ${invalidFiles.map(f => f.name).join(', ')}`)
         return
       }
