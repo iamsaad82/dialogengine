@@ -5,31 +5,20 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['dialog-engine.vercel.app', 'localhost', '127.0.0.1', 'dialog-ai-web.de', 'dialog-engine.onrender.com'],
-    unoptimized: true,
+    domains: [
+      'localhost',
+      '127.0.0.1',
+      'dialog-ai-web.de',
+      'dialog-engine.onrender.com'
+    ],
     remotePatterns: [
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'dialog-engine.vercel.app',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'dialog-ai-web.de',
-        pathname: '/uploads/**',
-      },
       {
         protocol: 'https',
         hostname: 'dialog-engine.onrender.com',
-        pathname: '/uploads/**',
+        port: '',
+        pathname: '/**',
       }
-    ]
+    ],
   },
   output: 'standalone',
   typescript: {
