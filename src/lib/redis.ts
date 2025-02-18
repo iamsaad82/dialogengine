@@ -3,12 +3,24 @@ import { EventEmitter } from 'events'
 import { ScanStatus } from '../types'
 
 let redisClient: any | null = null
+let isRedisEnabled = process.env.REDIS_ENABLED === 'true'
 
-export function getRedisClient(): any {
+export function getRedisClient(): any | null {
+  if (!isRedisEnabled) {
+    console.log('[Redis] Redis ist deaktiviert')
+    return null
+  }
+
   if (!redisClient) {
-    redisClient = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379'
-    })
+    try {
+      redisClient = createClient({
+        url: process.env.REDIS_URL || 'redis://localhost:6379'
+      })
+      console.log('[Redis] Redis-Client erfolgreich initialisiert')
+    } catch (error) {
+      console.error('[Redis] Fehler beim Initialisieren des Redis-Clients:', error)
+      return null
+    }
   }
   return redisClient
 }
@@ -34,18 +46,27 @@ export interface RedisConfig {
 export type RedisStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 export class RedisClient extends EventEmitter {
-  private client: any
+  private client: any | null = null
   private _status: RedisStatus = 'disconnected'
-  private url: string
-  private options: any
+  private url: string = 'redis://localhost:6379'
+  private options: any = {}
   private retryCount: number = 0
   private readonly maxRetries: number = 3
 
   constructor(url: string = 'redis://localhost:6379', options: any = {}) {
     super()
+    
+    if (!isRedisEnabled) {
+      console.log('[Redis] Redis ist deaktiviert')
+      return
+    }
+
     this.url = url
     this.options = {
       ...options,
+      tls: {
+        rejectUnauthorized: false
+      },
       retryStrategy: this.retryStrategy.bind(this)
     }
   }
@@ -84,6 +105,7 @@ export class RedisClient extends EventEmitter {
   }
 
   public async connect(): Promise<void> {
+    if (!isRedisEnabled) return
     if (this._status === 'connected') return
 
     try {
@@ -97,7 +119,7 @@ export class RedisClient extends EventEmitter {
       await this.client.connect()
     } catch (error) {
       this._status = 'error'
-      throw error
+      console.error('[Redis] Verbindungsfehler:', error)
     }
   }
 
@@ -114,6 +136,7 @@ export class RedisClient extends EventEmitter {
   }
 
   public async testConnection(): Promise<boolean> {
+    if (!isRedisEnabled) return false
     if (!this.client || this._status !== 'connected') return false
 
     try {
