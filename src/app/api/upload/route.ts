@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Log file details
-    console.log('File details:', {
+    // Detailliertes Logging der Dateiinformationen
+    console.log('Received file details:', {
       name: file.name,
       type: file.type,
       size: file.size,
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(fileType);
     const isValidExtension = ALLOWED_EXTENSIONS.includes(extension);
     
-    console.log('Validation results:', {
+    console.log('File validation details:', {
       fileType,
       extension,
       isValidMimeType,
@@ -45,7 +45,11 @@ export async function POST(request: Request) {
     });
     
     if (!isValidMimeType && !isValidExtension) {
-      console.log('File type validation failed');
+      console.log('File validation failed:', {
+        reason: 'Invalid type or extension',
+        fileType,
+        extension
+      });
       return NextResponse.json(
         { error: 'Nur Bilder im Format JPG, JPEG, PNG oder WebP sind erlaubt' },
         { status: 400 }

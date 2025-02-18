@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JobManager } from '@/lib/services/jobManager'
 
-const jobManager = new JobManager(process.env.REDIS_URL || '')
+const jobManager = new JobManager()
 
 export async function GET(
   request: NextRequest,

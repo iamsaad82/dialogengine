@@ -33,7 +33,7 @@ const EXTENSION_MIME_MAP: Record<string, string> = {
   '.xml': 'application/xml'
 }
 
-const jobManager = new JobManager(process.env.REDIS_URL || '')
+const jobManager = new JobManager()
 
 export async function POST(request: NextRequest) {
   let jobId: string | undefined

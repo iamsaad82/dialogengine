@@ -20,6 +20,8 @@ const openai = new OpenAI({
 const redis = new Redis(process.env.REDIS_URL || '')
 const detector = new ContentTypeDetector(openai)
 
+const jobManager = new JobManager()
+
 async function cleanContent(content: string): Promise<string> {
   const chunks = []
   const chunkSize = 4000
@@ -171,7 +173,6 @@ async function waitForIndexReadiness(pineconeService: PineconeService, indexName
 
 export async function POST(req: Request) {
   let formData: FormData | null = null
-  const jobManager = new JobManager(process.env.REDIS_URL || '')
   
   try {
     formData = await req.formData()

@@ -150,6 +150,7 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
             id="showcase-image"
             label="Showcase Bild hochladen"
             value={showcase.image}
+            accept="image/jpeg,image/png,image/webp"
             onChange={(url) => {
               console.log('Neues Showcase-Bild URL:', url);
               // Stelle sicher, dass die URL mit einem Slash beginnt
