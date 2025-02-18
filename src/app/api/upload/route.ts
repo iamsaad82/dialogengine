@@ -3,6 +3,9 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -15,10 +18,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validierung
-    if (!file.type.startsWith('image/')) {
+    // Validierung des MIME-Types und der Dateiendung
+    const fileType = file.type.toLowerCase();
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(fileType);
+    const isValidExtension = ALLOWED_EXTENSIONS.includes(extension);
+    
+    if (!isValidMimeType && !isValidExtension) {
       return NextResponse.json(
-        { error: 'Nur Bilder sind erlaubt' },
+        { error: 'Nur Bilder im Format JPG, JPEG, PNG oder WebP sind erlaubt' },
         { status: 400 }
       );
     }
