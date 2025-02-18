@@ -14,7 +14,11 @@ export function getRedisClient(): any | null {
   if (!redisClient) {
     try {
       redisClient = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379'
+        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        socket: {
+          tls: true,
+          rejectUnauthorized: false
+        }
       })
       console.log('[Redis] Redis-Client erfolgreich initialisiert')
     } catch (error) {
@@ -112,6 +116,10 @@ export class RedisClient extends EventEmitter {
       this._status = 'connecting'
       this.client = createClient({
         url: this.url,
+        socket: {
+          tls: true,
+          rejectUnauthorized: false
+        },
         ...this.options
       })
 
