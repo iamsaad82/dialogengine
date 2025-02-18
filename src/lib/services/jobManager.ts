@@ -1,62 +1,18 @@
 import { Redis } from 'ioredis'
 import { BatchJob, JobProgress, JobPhase, JobError, JobUpdate } from '../types/jobs'
 import { nanoid } from 'nanoid'
+import { getRedisInstance, isRedisEnabled } from '../redis'
 
 export class JobManager {
   private redis: Redis
   private readonly keyPrefix = 'jobs:'
-  private isConnected: boolean = false
 
-  constructor(redisUrl: string) {
-    this.redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 100, 3000)
-        console.log(`[Redis] Verbindungsversuch ${times}, nächster Versuch in ${delay}ms`)
-        return delay
-      },
-      reconnectOnError: (err) => {
-        console.error('[Redis] Verbindungsfehler:', err)
-        return true
-      },
-      enableReadyCheck: true,
-      connectTimeout: 10000,
-      lazyConnect: true
-    })
-
-    this.redis.on('connect', () => {
-      console.log('[Redis] Verbindung hergestellt')
-      this.isConnected = true
-    })
-
-    this.redis.on('error', (error) => {
-      console.error('[Redis] Fehler:', error)
-      this.isConnected = false
-    })
-
-    this.redis.on('close', () => {
-      console.log('[Redis] Verbindung geschlossen')
-      this.isConnected = false
-    })
-
-    // Initialisiere die Verbindung
-    this.connect()
-  }
-
-  private async connect() {
-    if (!this.isConnected) {
-      try {
-        await this.redis.connect()
-      } catch (error) {
-        console.error('[Redis] Verbindungsfehler beim Start:', error)
-      }
+  constructor() {
+    if (!isRedisEnabled()) {
+      throw new Error('Redis ist nicht aktiviert')
     }
-  }
-
-  private async ensureConnection() {
-    if (!this.isConnected) {
-      await this.connect()
-    }
+    
+    this.redis = getRedisInstance()
   }
 
   private getJobKey(jobId: string): string {

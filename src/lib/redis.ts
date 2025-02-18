@@ -1,38 +1,74 @@
-import { createClient } from 'redis'
+import Redis from 'ioredis'
 import { EventEmitter } from 'events'
 import { ScanStatus } from '../types'
 
-let redisClient: any | null = null
-let isRedisEnabled = process.env.REDIS_ENABLED === 'true'
+// Zentrale Redis-Konfiguration
+const REDIS_CONFIG = {
+  enabled: process.env.REDIS_ENABLED === 'true',
+  url: process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL,
+  options: {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 100, 3000)
+      console.log(`[Redis] Verbindungsversuch ${times}, nächster Versuch in ${delay}ms`)
+      return delay
+    },
+    reconnectOnError: (err: Error) => {
+      console.error('[Redis] Verbindungsfehler:', err)
+      return true
+    },
+    enableReadyCheck: true,
+    connectTimeout: 10000,
+    lazyConnect: true
+  }
+}
 
-export function getRedisClient(): any | null {
-  if (!isRedisEnabled) {
-    console.log('[Redis] Redis ist deaktiviert')
-    return null
+// Validiere Redis-Konfiguration
+if (REDIS_CONFIG.enabled && !REDIS_CONFIG.url) {
+  console.error('[Redis] REDIS_ENABLED ist true, aber keine REDIS_URL konfiguriert')
+  throw new Error('Redis Configuration Error: URL missing')
+}
+
+// Singleton-Instanz
+let redisInstance: Redis | null = null
+
+export function getRedisInstance(): Redis {
+  if (!REDIS_CONFIG.enabled) {
+    throw new Error('Redis is not enabled')
   }
 
-  if (!redisClient) {
-    try {
-      redisClient = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
-        socket: {
-          tls: true,
-          rejectUnauthorized: false
-        }
-      })
-      console.log('[Redis] Redis-Client erfolgreich initialisiert')
-    } catch (error) {
-      console.error('[Redis] Fehler beim Initialisieren des Redis-Clients:', error)
-      return null
-    }
+  if (!redisInstance) {
+    console.log('[Redis] Initialisiere neue Redis-Verbindung')
+    redisInstance = new Redis(REDIS_CONFIG.url!, REDIS_CONFIG.options)
+
+    redisInstance.on('connect', () => {
+      console.log('[Redis] Verbindung hergestellt')
+    })
+
+    redisInstance.on('error', (error) => {
+      console.error('[Redis] Fehler:', error)
+    })
+
+    redisInstance.on('close', () => {
+      console.log('[Redis] Verbindung geschlossen')
+    })
   }
-  return redisClient
+
+  return redisInstance
+}
+
+export function isRedisEnabled(): boolean {
+  return REDIS_CONFIG.enabled
+}
+
+export function getRedisUrl(): string | null {
+  return REDIS_CONFIG.url || null
 }
 
 export function closeRedisConnection() {
-  if (redisClient) {
-    redisClient.quit()
-    redisClient = null
+  if (redisInstance) {
+    redisInstance.quit()
+    redisInstance = null
   }
 }
 
@@ -60,7 +96,7 @@ export class RedisClient extends EventEmitter {
   constructor(url: string = 'redis://localhost:6379', options: any = {}) {
     super()
     
-    if (!isRedisEnabled) {
+    if (!REDIS_CONFIG.enabled) {
       console.log('[Redis] Redis ist deaktiviert')
       return
     }
@@ -109,19 +145,12 @@ export class RedisClient extends EventEmitter {
   }
 
   public async connect(): Promise<void> {
-    if (!isRedisEnabled) return
+    if (!REDIS_CONFIG.enabled) return
     if (this._status === 'connected') return
 
     try {
       this._status = 'connecting'
-      this.client = createClient({
-        url: this.url,
-        socket: {
-          tls: true,
-          rejectUnauthorized: false
-        },
-        ...this.options
-      })
+      this.client = new Redis(REDIS_CONFIG.url!, REDIS_CONFIG.options)
 
       this.setupEventListeners()
       await this.client.connect()
@@ -144,7 +173,7 @@ export class RedisClient extends EventEmitter {
   }
 
   public async testConnection(): Promise<boolean> {
-    if (!isRedisEnabled) return false
+    if (!REDIS_CONFIG.enabled) return false
     if (!this.client || this._status !== 'connected') return false
 
     try {
