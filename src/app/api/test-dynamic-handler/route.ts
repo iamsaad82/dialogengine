@@ -21,15 +21,8 @@ export async function POST(request: Request) {
     // 1. Analyze content
     const analysis = await test.analyzeContent();
     
-    // 2. Generate handler
-    const handler = await test.generateHandler();
-    
-    // 3. Generate test response
-    const response = await handler.generateResponse({
-      query: "Test query",
-      templateId,
-      metadata: analysis.metadata
-    });
+    // 2. Test handler with a query
+    const response = await test.testHandler("Test query");
 
     return NextResponse.json({
       analysis,
