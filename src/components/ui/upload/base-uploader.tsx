@@ -183,7 +183,7 @@ export function BaseUploader({
         return <Clock className="h-5 w-5 text-yellow-500" />
       case 'scanning':
       case 'analyzing':
-      case 'vectorizing':
+      case 'indexing':
         return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />
