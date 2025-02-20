@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
-import { DocumentUploader } from '@/components/ui/upload'
+import { PageHeader } from '@/components/ui/page-header'
+import { DocumentManager } from '@/components/admin/template/DocumentManager'
 
 interface DocumentsPageProps {
   params: {
@@ -29,21 +30,16 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Dokumente</h3>
-        <p className="text-sm text-muted-foreground">
-          Laden Sie hier Markdown-Dateien und andere Dokumente hoch, die für die Wissensbasis verwendet werden sollen.
-        </p>
-      </div>
-      <DocumentUploader 
-        templateId={params.id}
-        onUploadComplete={() => {
-          toast({
-            title: 'Erfolg',
-            description: 'Dokument wurde erfolgreich hochgeladen und verarbeitet.'
-          })
-        }}
+      <PageHeader
+        title="Dokumente"
+        description="Verwalten Sie hier die Dokumente für die Wissensbasis Ihres Chatbots."
       />
+      
+      <div className="container mx-auto py-6">
+        <div className="bg-white rounded-lg border p-6">
+          <DocumentManager templateId={params.id} />
+        </div>
+      </div>
     </div>
   )
 } 

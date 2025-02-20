@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { validateUrl, validateRequired, getErrorMessage } from "@/lib/utils/validation"
 import { useState, useEffect } from "react"
 import { ImageUploader } from '@/components/ui/upload'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type ShowcaseSection = {
   image: string
@@ -16,6 +17,11 @@ type ShowcaseSection = {
     title: string
     question: string
   }
+  contact: {
+    text: string
+    type: string
+    value: string
+  }
 }
 
 type ShowcaseEditorProps = {
@@ -23,7 +29,23 @@ type ShowcaseEditorProps = {
   onChange: (showcase: ShowcaseSection) => void
 }
 
-export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
+export function ShowcaseEditor({ showcase = {
+  image: '',
+  altText: '',
+  context: {
+    title: '',
+    description: ''
+  },
+  cta: {
+    title: '',
+    question: ''
+  },
+  contact: {
+    text: '',
+    type: 'email',
+    value: ''
+  }
+}, onChange }: ShowcaseEditorProps) {
   const [errors, setErrors] = useState<{
     image?: string
     altText?: string
@@ -31,89 +53,93 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
     'context.description'?: string
     'cta.title'?: string
     'cta.question'?: string
+    'contact.text'?: string
+    'contact.value'?: string
   }>({})
 
   const [charCount, setCharCount] = useState({
-    title: showcase.context.title.length,
-    description: showcase.context.description.length,
-    ctaTitle: showcase.cta?.title?.length || 0,
-    ctaQuestion: showcase.cta?.question?.length || 0
+    title: showcase?.context?.title?.length || 0,
+    description: showcase?.context?.description?.length || 0,
+    ctaTitle: showcase?.cta?.title?.length || 0,
+    ctaQuestion: showcase?.cta?.question?.length || 0,
+    contactText: showcase?.contact?.text?.length || 0
   })
 
   const handleChange = (field: string, value: string) => {
     let error = ''
+    const updatedShowcase = { ...showcase }
 
-    // Validate field
-    if (field === 'image') {
-      error = !validateUrl(value) ? getErrorMessage('Bild URL', 'url') : ''
-      onChange({
-        ...showcase,
-        image: value
-      })
-    } else if (field === 'altText') {
-      error = !validateRequired(value) ? getErrorMessage('Alt Text', 'required') : ''
-      onChange({
-        ...showcase,
-        altText: value
-      })
-    } else if (field === 'context.title') {
-      setCharCount(prev => ({
-        ...prev,
-        title: value.length
-      }))
-      error = !validateRequired(value) ? getErrorMessage('Kontext Titel', 'required') : ''
-      onChange({
-        ...showcase,
-        context: {
-          ...showcase.context,
+    // Validate field and update showcase object
+    switch (field) {
+      case 'image':
+        error = !validateUrl(value) ? getErrorMessage('Bild URL', 'url') : ''
+        updatedShowcase.image = value
+        break
+      case 'altText':
+        error = !validateRequired(value) ? getErrorMessage('Alt Text', 'required') : ''
+        updatedShowcase.altText = value
+        break
+      case 'context.title':
+        error = !validateRequired(value) ? getErrorMessage('Kontext Titel', 'required') : ''
+        updatedShowcase.context = {
+          ...updatedShowcase.context,
           title: value
         }
-      })
-    } else if (field === 'context.description') {
-      setCharCount(prev => ({
-        ...prev,
-        description: value.length
-      }))
-      error = !validateRequired(value) ? getErrorMessage('Kontext Beschreibung', 'required') : ''
-      onChange({
-        ...showcase,
-        context: {
-          ...showcase.context,
+        setCharCount(prev => ({ ...prev, title: value.length }))
+        break
+      case 'context.description':
+        error = !validateRequired(value) ? getErrorMessage('Kontext Beschreibung', 'required') : ''
+        updatedShowcase.context = {
+          ...updatedShowcase.context,
           description: value
         }
-      })
-    } else if (field === 'cta.title') {
-      setCharCount(prev => ({
-        ...prev,
-        ctaTitle: value.length
-      }))
-      error = !validateRequired(value) ? getErrorMessage('CTA Titel', 'required') : ''
-      onChange({
-        ...showcase,
-        cta: {
-          ...showcase.cta,
+        setCharCount(prev => ({ ...prev, description: value.length }))
+        break
+      case 'cta.title':
+        error = !validateRequired(value) ? getErrorMessage('CTA Titel', 'required') : ''
+        updatedShowcase.cta = {
+          ...updatedShowcase.cta,
           title: value
         }
-      })
-    } else if (field === 'cta.question') {
-      setCharCount(prev => ({
-        ...prev,
-        ctaQuestion: value.length
-      }))
-      error = !validateRequired(value) ? getErrorMessage('CTA Frage', 'required') : ''
-      onChange({
-        ...showcase,
-        cta: {
-          ...showcase.cta,
+        setCharCount(prev => ({ ...prev, ctaTitle: value.length }))
+        break
+      case 'cta.question':
+        error = !validateRequired(value) ? getErrorMessage('CTA Frage', 'required') : ''
+        updatedShowcase.cta = {
+          ...updatedShowcase.cta,
           question: value
         }
-      })
+        setCharCount(prev => ({ ...prev, ctaQuestion: value.length }))
+        break
+      case 'contact.text':
+        error = !validateRequired(value) ? getErrorMessage('Kontakt Text', 'required') : ''
+        updatedShowcase.contact = {
+          ...updatedShowcase.contact,
+          text: value
+        }
+        setCharCount(prev => ({ ...prev, contactText: value.length }))
+        break
+      case 'contact.type':
+        updatedShowcase.contact = {
+          ...updatedShowcase.contact,
+          type: value
+        }
+        break
+      case 'contact.value':
+        error = !validateRequired(value) ? getErrorMessage('Kontakt Wert', 'required') : ''
+        updatedShowcase.contact = {
+          ...updatedShowcase.contact,
+          value: value
+        }
+        break
     }
 
     setErrors(prev => ({
       ...prev,
       [field]: error
     }))
+
+    onChange(updatedShowcase)
   }
 
   // Initial validation
@@ -147,17 +173,10 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
         <div>
           <Label>Bild</Label>
           <ImageUploader
-            id="showcase-image"
-            label="Showcase Bild hochladen"
-            value={showcase.image}
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(url) => {
-              console.log('Neues Showcase-Bild URL:', url);
-              // Stelle sicher, dass die URL mit einem Slash beginnt
-              const formattedUrl = url.startsWith('/') ? url : `/${url}`;
-              console.log('Formatierte URL:', formattedUrl);
-              handleChange('image', formattedUrl);
-            }}
+            currentImage={showcase.image || ''}
+            onUpload={(url: string) => handleChange('image', url)}
+            aspectRatio="landscape"
+            maxSize={1000}
           />
           {errors.image && (
             <p className="text-sm text-red-500 mt-1">{errors.image}</p>
@@ -250,6 +269,64 @@ export function ShowcaseEditor({ showcase, onChange }: ShowcaseEditorProps) {
               />
               {errors['cta.question'] && (
                 <p className="text-sm text-red-500 mt-1">{errors['cta.question']}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Kontakt Bereich */}
+        <div className="pt-4 border-t">
+          <h4 className="text-base font-medium mb-4">Kontakt</h4>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="contactText" className="flex justify-between">
+                <span>Kontakt Text</span>
+                <span className="text-muted-foreground text-sm">{charCount.contactText}/200</span>
+              </Label>
+              <Input
+                id="contactText"
+                value={showcase.contact?.text || ''}
+                onChange={(e) => handleChange('contact.text', e.target.value)}
+                maxLength={200}
+                className={errors['contact.text'] ? 'border-red-500' : ''}
+                placeholder="z.B. Sprechen Sie mit uns"
+              />
+              {errors['contact.text'] && (
+                <p className="text-sm text-red-500 mt-1">{errors['contact.text']}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="contactType">Kontakt Typ</Label>
+              <Select
+                value={showcase.contact?.type || 'email'}
+                onValueChange={(value) => handleChange('contact.type', value)}
+              >
+                <SelectTrigger id="contactType">
+                  <SelectValue placeholder="Kontakt Typ wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">E-Mail</SelectItem>
+                  <SelectItem value="phone">Telefon</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="contactValue">
+                {showcase.contact?.type === 'email' ? 'E-Mail Adresse' : 'Telefonnummer'}
+              </Label>
+              <Input
+                id="contactValue"
+                value={showcase.contact?.value || ''}
+                onChange={(e) => handleChange('contact.value', e.target.value)}
+                type={showcase.contact?.type === 'email' ? 'email' : 'tel'}
+                className={errors['contact.value'] ? 'border-red-500' : ''}
+                placeholder={showcase.contact?.type === 'email' ? 'kontakt@beispiel.de' : '+49 123 456789'}
+              />
+              {errors['contact.value'] && (
+                <p className="text-sm text-red-500 mt-1">{errors['contact.value']}</p>
               )}
             </div>
           </div>

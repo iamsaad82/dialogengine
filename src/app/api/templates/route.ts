@@ -44,10 +44,26 @@ const createDefaultBranding = () => ({
   font: 'Inter'
 })
 
-const createDefaultBot = () => ({
-  type: 'examples',
-  examples: []
-})
+const createDefaultHandlers = () => ([
+  {
+    type: 'medical',
+    active: true,
+    metadata: {
+      keyTopics: ['Impfung', 'Gesundheit', 'Vorsorge'],
+      entities: ['Arzt', 'Patient', 'Krankenkasse'],
+      facts: []
+    },
+    responses: [
+      {
+        type: 'dynamic',
+        templates: [
+          "Basierend auf den medizinischen Informationen: {{facts}}",
+          "Die wichtigsten medizinischen Fakten dazu sind: {{facts}}"
+        ]
+      }
+    ]
+  }
+])
 
 const createDefaultMeta = (name: string) => ({
   title: name || 'Neues Template',
@@ -79,58 +95,24 @@ export async function POST(request: NextRequest) {
     const template = await prisma.template.create({
       data: {
         name: body.name || 'Neues Template',
-        type: 'CUSTOM',
+        type: body.type || 'NEUTRAL',
         active: true,
         subdomain: body.subdomain || 'test',
-        jsonBot: JSON.stringify({
-          handlers: {
-            medical: [{
-              type: 'medical',
-              active: true,
-              metadata: {
-                keyTopics: ['Impfung', 'Gesundheit', 'Vorsorge'],
-                entities: ['Arzt', 'Patient', 'Krankenkasse'],
-                facts: []
-              },
-              responses: [
-                {
-                  type: 'dynamic',
-                  templates: [
-                    "Basierend auf den medizinischen Informationen: {{facts}}",
-                    "Die wichtigsten medizinischen Fakten dazu sind: {{facts}}",
-                    "Aus medizinischer Sicht ist folgendes relevant: {{facts}}"
-                  ],
-                  context: "Medizinische Standardantwort"
-                },
-                {
-                  type: 'contact',
-                  templates: [
-                    "Sie können einen Termin vereinbaren: {{facts}}",
-                    "Für eine Terminvereinbarung: {{facts}}",
-                    "Kontaktieren Sie uns: {{facts}}"
-                  ],
-                  context: "Kontaktinformationen"
-                }
-              ],
-              settings: {
-                matchThreshold: 0.7,
-                contextWindow: 3,
-                maxTokens: 150,
-                dynamicResponses: true,
-                includeContact: true,
-                includeSteps: true
-              }
-            }]
-          }
-        })
+        branding: body.branding || createDefaultBranding(),
+        config: body.config || {},
+        content: body.content || createDefaultContent(),
+        description: body.description || 'Ein neues Template',
+        handlers: body.handlers || createDefaultHandlers(),
+        meta: body.meta || createDefaultMeta(body.name),
+        responses: body.responses || { rules: [], templates: [] }
       }
     })
-
-    return NextResponse.json({ success: true, template })
+    
+    return NextResponse.json(template)
   } catch (error) {
-    console.error('Fehler beim Erstellen des Templates:', error)
+    console.error('POST error:', error)
     return NextResponse.json(
-      { error: 'Interner Server-Fehler' },
+      { error: "Fehler beim Erstellen des Templates" },
       { status: 500 }
     )
   }
@@ -183,36 +165,36 @@ export async function PUT(req: Request) {
     }
 
     // Parse und validiere die JSON-Felder
-    let content, branding, bot, meta
+    let content, branding, handlers, meta
 
     try {
-      content = typeof data.jsonContent === 'string' 
-        ? JSON.parse(data.jsonContent)
-        : data.jsonContent || (existingTemplate.jsonContent ? JSON.parse(existingTemplate.jsonContent) : createDefaultContent())
+      content = typeof data.content === 'string' 
+        ? JSON.parse(data.content)
+        : data.content || existingTemplate.content || createDefaultContent()
     } catch (e) {
       content = createDefaultContent()
     }
 
     try {
-      branding = typeof data.jsonBranding === 'string'
-        ? JSON.parse(data.jsonBranding)
-        : data.jsonBranding || (existingTemplate.jsonBranding ? JSON.parse(existingTemplate.jsonBranding) : createDefaultBranding())
+      branding = typeof data.branding === 'string'
+        ? JSON.parse(data.branding)
+        : data.branding || existingTemplate.branding || createDefaultBranding()
     } catch (e) {
       branding = createDefaultBranding()
     }
 
     try {
-      bot = typeof data.jsonBot === 'string'
-        ? JSON.parse(data.jsonBot)
-        : data.jsonBot || (existingTemplate.jsonBot ? JSON.parse(existingTemplate.jsonBot) : createDefaultBot())
+      handlers = typeof data.handlers === 'string'
+        ? JSON.parse(data.handlers)
+        : data.handlers || existingTemplate.handlers || createDefaultHandlers()
     } catch (e) {
-      bot = createDefaultBot()
+      handlers = createDefaultHandlers()
     }
 
     try {
-      meta = typeof data.jsonMeta === 'string'
-        ? JSON.parse(data.jsonMeta)
-        : data.jsonMeta || (existingTemplate.jsonMeta ? JSON.parse(existingTemplate.jsonMeta) : createDefaultMeta(data.name || existingTemplate.name))
+      meta = typeof data.meta === 'string'
+        ? JSON.parse(data.meta)
+        : data.meta || existingTemplate.meta || createDefaultMeta(data.name || existingTemplate.name)
     } catch (e) {
       meta = createDefaultMeta(data.name || existingTemplate.name)
     }
@@ -224,10 +206,12 @@ export async function PUT(req: Request) {
         type: data.type || existingTemplate.type,
         subdomain: subdomain,
         active: data.active ?? existingTemplate.active,
-        jsonContent: JSON.stringify(content),
-        jsonBranding: JSON.stringify(branding),
-        jsonBot: JSON.stringify(bot),
-        jsonMeta: JSON.stringify(meta)
+        content: content,
+        branding: branding,
+        handlers: handlers,
+        meta: meta,
+        config: data.config || existingTemplate.config || {},
+        description: data.description || existingTemplate.description
       }
     })
 

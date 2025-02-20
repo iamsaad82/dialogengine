@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { BrandingEditor } from '@/components/admin/template/BrandingEditor'
-import { ParsedBranding } from '@/lib/types/template'
+import { BrandingConfig } from '@/lib/types/template'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
 
 interface BrandingPageProps {
   params: {
@@ -13,8 +14,20 @@ interface BrandingPageProps {
 }
 
 export default function BrandingPage({ params }: BrandingPageProps) {
-  const [branding, setBranding] = useState<ParsedBranding | null>(null)
+  const [branding, setBranding] = useState<BrandingConfig>({
+    logo: '',
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#CCCCCC'
+    },
+    fonts: {
+      heading: 'Inter',
+      body: 'Inter'
+    }
+  })
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -24,57 +37,80 @@ export default function BrandingPage({ params }: BrandingPageProps) {
   const loadBranding = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/templates/${params.id}/branding`)
+      const response = await fetch(`/api/templates/${params.id}`)
+      
+      if (!response.ok) {
+        throw new Error('Fehler beim Laden des Brandings')
+      }
+      
       const data = await response.json()
-      setBranding(data.branding || createDefaultBranding())
+      setBranding(data.branding || {
+        logo: '',
+        colors: {
+          primary: '#000000',
+          secondary: '#666666',
+          accent: '#CCCCCC'
+        },
+        fonts: {
+          heading: 'Inter',
+          body: 'Inter'
+        }
+      })
     } catch (error) {
-      console.error('Fehler beim Laden der Branding-Daten:', error)
+      console.error('Fehler beim Laden des Brandings:', error)
       toast({
         title: 'Fehler',
-        description: 'Die Branding-Daten konnten nicht geladen werden.'
+        description: 'Das Branding konnte nicht geladen werden.'
       })
-      setBranding(createDefaultBranding())
     } finally {
       setLoading(false)
     }
   }
 
-  const createDefaultBranding = (): ParsedBranding => {
-    return {
-      primaryColor: '#000000',
-      secondaryColor: '#ffffff',
-      backgroundColor: '#ffffff',
-      textColor: '#000000',
-      logo: '',
-      font: 'Inter'
-    }
-  }
-
-  const handleBrandingChange = async (updatedBranding: ParsedBranding) => {
+  const handleBrandingChange = async (updatedBranding: BrandingConfig) => {
     try {
-      const response = await fetch(`/api/templates/${params.id}/branding`, {
-        method: 'PATCH',
+      setSaving(true)
+      
+      // Hole zuerst das aktuelle Template
+      const getResponse = await fetch(`/api/templates/${params.id}`)
+      const currentTemplate = await getResponse.json()
+      
+      if (!getResponse.ok) {
+        throw new Error('Fehler beim Laden des Templates')
+      }
+
+      // Bereite die Update-Daten vor
+      const updateData = {
+        ...currentTemplate,
+        branding: updatedBranding
+      }
+
+      // Sende Update-Request
+      const response = await fetch(`/api/templates/${params.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ branding: updatedBranding }),
+        body: JSON.stringify(updateData),
       })
-
+      
       if (!response.ok) {
-        throw new Error('Fehler beim Speichern')
+        throw new Error('Fehler beim Speichern des Brandings')
       }
-
+      
       setBranding(updatedBranding)
       toast({
         title: 'Erfolg',
-        description: 'Branding-Einstellungen wurden gespeichert.'
+        description: 'Das Branding wurde gespeichert.'
       })
     } catch (error) {
-      console.error('Fehler beim Speichern der Branding-Daten:', error)
+      console.error('Fehler beim Speichern des Brandings:', error)
       toast({
         title: 'Fehler',
-        description: 'Die Branding-Daten konnten nicht gespeichert werden.'
+        description: 'Das Branding konnte nicht gespeichert werden.'
       })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -86,20 +122,22 @@ export default function BrandingPage({ params }: BrandingPageProps) {
     )
   }
 
-  if (!branding) {
-    return (
-      <div className="p-8 text-center text-muted-foreground">
-        Keine Branding-Daten verfügbar. Bitte laden Sie die Seite neu.
-      </div>
-    )
-  }
-
   return (
-    <div>
-      <BrandingEditor 
-        branding={branding} 
-        onChange={handleBrandingChange}
+    <div className="space-y-6">
+      <PageHeader
+        title="Branding"
+        description="Passen Sie das Erscheinungsbild Ihres Templates an."
       />
+      
+      <div className="container mx-auto py-6">
+        <div className="bg-white rounded-lg border p-6">
+          <BrandingEditor
+            branding={branding}
+            onChange={handleBrandingChange}
+            saving={saving}
+          />
+        </div>
+      </div>
     </div>
   )
 } 

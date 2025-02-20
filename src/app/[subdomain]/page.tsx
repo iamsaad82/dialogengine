@@ -13,6 +13,12 @@ interface Props {
   }
 }
 
+interface TemplateMeta {
+  title?: string
+  description?: string
+  [key: string]: any
+}
+
 export async function generateMetadata({ params }: { params: { subdomain: string } }): Promise<Metadata> {
   const template = await prisma.template.findFirst({
     where: {
@@ -29,10 +35,10 @@ export async function generateMetadata({ params }: { params: { subdomain: string
   }
 
   try {
-    const meta = template.jsonMeta ? JSON.parse(template.jsonMeta) : null
+    const meta = template.meta as TemplateMeta || {}
     return {
-      title: meta?.title || template.name,
-      description: meta?.description || `${template.name} - Powered by Dialog Engine`
+      title: meta.title || template.name,
+      description: meta.description || `${template.name} - Powered by Dialog Engine`
     }
   } catch (error) {
     console.error('Fehler beim Parsen der Metadaten:', error)
@@ -43,36 +49,71 @@ export async function generateMetadata({ params }: { params: { subdomain: string
   }
 }
 
+const DEFAULT_BRANDING = {
+  logo: '',
+  colors: {
+    primary: '#000000',
+    secondary: '#666666',
+    accent: '#CCCCCC'
+  },
+  fonts: {
+    heading: 'Inter',
+    body: 'Inter'
+  }
+}
+
+const DEFAULT_CONTENT = {
+  metadata: {},
+  sections: [
+    {
+      id: 'hero',
+      type: 'hero',
+      content: {
+        title: 'Willkommen',
+        subtitle: 'Untertitel hier einfügen',
+        description: 'Beschreibung hier einfügen'
+      }
+    },
+    {
+      id: 'showcase',
+      type: 'showcase',
+      content: {
+        image: '',
+        altText: '',
+        context: {
+          title: 'Showcase Titel',
+          description: 'Showcase Beschreibung'
+        },
+        cta: {
+          title: 'Haben Sie Fragen?',
+          question: 'Wie können wir Ihnen helfen?'
+        }
+      }
+    }
+  ]
+}
+
 export default async function SubdomainPage({ params }: Props) {
   try {
+    console.log('Lade Template für Subdomain:', params.subdomain)
     const template = await getTemplateBySubdomain(params.subdomain)
     
     if (!template) {
+      console.log('Kein Template gefunden für:', params.subdomain)
       notFound()
     }
 
-    const content = template.jsonContent ? JSON.parse(template.jsonContent) : {}
-    const branding = template.jsonBranding ? JSON.parse(template.jsonBranding) : {}
-    
-    // Stelle sicher, dass die Mindestanforderungen erfüllt sind
-    if (!content || !branding) {
-      console.error('Template Konfigurationsfehler:', { 
-        hasContent: !!content, 
-        hasBranding: !!branding,
-        templateId: template.id 
+    // Verwende Standardwerte, wenn content oder branding fehlen
+    const content = template.content || DEFAULT_CONTENT
+    const branding = template.branding || DEFAULT_BRANDING
+
+    // Protokolliere Warnung, aber verhindere keinen Render
+    if (!template.content?.sections || !template.branding) {
+      console.warn('Template verwendet Standardwerte:', {
+        hasContent: !!template.content?.sections,
+        hasBranding: !!template.branding,
+        templateId: template.id
       })
-      
-      // Verwende Fallback-Werte
-      return (
-        <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold mb-4">
-            {content?.hero?.title || 'Willkommen'}
-          </h1>
-          <p className="text-gray-600">
-            {content?.hero?.description || 'Diese Seite wird gerade konfiguriert.'}
-          </p>
-        </div>
-      )
     }
 
     return (
@@ -86,11 +127,11 @@ export default async function SubdomainPage({ params }: Props) {
     console.error('Fehler beim Laden des Templates:', error)
     return (
       <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold text-red-600 mb-4">
+        <h1 className="text-2xl font-bold mb-4">
           Ein Fehler ist aufgetreten
         </h1>
         <p className="text-gray-600">
-          Bitte versuchen Sie es später erneut oder kontaktieren Sie den Support.
+          Das Template konnte nicht geladen werden. Bitte versuchen Sie es später erneut.
         </p>
       </div>
     )

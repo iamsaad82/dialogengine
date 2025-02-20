@@ -14,7 +14,10 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 
 interface ChatbotLandingPageProps {
-  template: Template;
+  template: Template & {
+    jsonContent: ParsedContent | string
+    jsonBranding: ParsedBranding | string
+  }
 }
 
 export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
@@ -24,34 +27,27 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
 
   React.useEffect(() => {
     try {
-      console.log('Template content before parsing:', template.jsonContent);
-      
-      // Parse content if it's a string and remove nested jsonContent fields
+      // Verarbeite content
       const parsedContent = typeof template.jsonContent === 'string' 
         ? JSON.parse(template.jsonContent)
         : template.jsonContent;
       
-      // Remove nested jsonContent fields to prevent circular references
-      const cleanContent = JSON.parse(JSON.stringify(parsedContent, (key, value) => {
-        if (key === 'jsonContent') return undefined;
-        return value;
-      }));
-      
-      // Parse branding if it's a string
+      // Verarbeite branding
       const parsedBranding = typeof template.jsonBranding === 'string'
         ? JSON.parse(template.jsonBranding)
         : template.jsonBranding;
       
-      console.log('Cleaned content:', cleanContent);
+      console.log('Parsed content:', parsedContent);
       console.log('Parsed branding:', parsedBranding);
       
       // Set CSS variables for the template colors
       if (parsedBranding?.primaryColor) {
         document.documentElement.style.setProperty('--primary-color', parsedBranding.primaryColor);
+        document.documentElement.style.setProperty('--background', `${parsedBranding.primaryColor}05`);
       }
       
-      // Set the content and branding directly
-      setContent(cleanContent);
+      // Set the content and branding
+      setContent(parsedContent);
       setBranding(parsedBranding);
     } catch (error) {
       console.error('Error parsing template data:', error);
@@ -59,14 +55,6 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
       console.error('Template branding that caused error:', template.jsonBranding);
     }
   }, [template]);
-
-  useEffect(() => {
-    if (branding?.primaryColor) {
-      // Convert hex color with opacity
-      document.documentElement.style.setProperty('--background', `${branding.primaryColor}05`);
-      document.documentElement.style.setProperty('--primary-color', branding.primaryColor);
-    }
-  }, [branding?.primaryColor]);
 
   // Show loading state if content or branding is not yet available
   if (!content || !branding) {

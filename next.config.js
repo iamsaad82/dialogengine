@@ -5,16 +5,28 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      'localhost',
-      '127.0.0.1',
-      'dialog-ai-web.de',
-      'dialog-engine.onrender.com'
-    ],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'dialog-engine.onrender.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '3000',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dialog-ai-web.de',
         port: '',
         pathname: '/**',
       }
@@ -26,10 +38,6 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true
-  },
-  env: {
-    POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL,
-    POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING
   }
 };
 

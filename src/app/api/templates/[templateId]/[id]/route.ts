@@ -3,14 +3,30 @@ import { prisma } from '@/lib/prisma'
 import { templateSchema } from '@/lib/schemas/template'
 import { z } from 'zod'
 
+const updateTemplateSchema = z.object({
+  name: z.string().optional(),
+  type: z.string().optional(),
+  active: z.boolean().optional(),
+  subdomain: z.string().optional(),
+  description: z.string().optional(),
+  branding: z.any().optional(),
+  config: z.any().optional(),
+  content: z.any().optional(),
+  meta: z.any().optional(),
+  responses: z.any().optional(),
+  bot_type: z.string().optional(),
+  bot_config: z.any().optional()
+})
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { templateId: string } }
 ) {
   try {
     const template = await prisma.template.findUnique({
-      where: {
-        id: params.id
+      where: { id: params.templateId },
+      include: {
+        extractionSchema: true
       }
     })
 
@@ -25,7 +41,7 @@ export async function GET(
   } catch (error) {
     console.error('Fehler beim Laden des Templates:', error)
     return NextResponse.json(
-      { error: 'Interner Serverfehler' },
+      { error: 'Fehler beim Laden des Templates' },
       { status: 500 }
     )
   }

@@ -1,5 +1,5 @@
-import { OpenAI } from 'openai'
-import { Pinecone, RecordMetadata } from '@pinecone-database/pinecone'
+import { Pinecone } from '@pinecone-database/pinecone'
+import OpenAI from 'openai'
 import { v4 as uuidv4 } from 'uuid'
 
 // Definiere ContentType direkt hier
@@ -14,16 +14,25 @@ export type ContentType =
   | 'download' 
   | 'error';
 
-export interface VectorizerConfig {
-  openaiApiKey: string
-  pineconeApiKey: string
-  pineconeEnvironment: string
-  pineconeIndex: string
-  pineconeHost?: string
-  templateId: string
+interface VectorizerConfig {
+  openaiApiKey: string;
+  pineconeApiKey: string;
+  pineconeEnvironment: string;
+  pineconeIndex: string;
+  templateId: string;
 }
 
-interface DocumentMetadata extends RecordMetadata {
+interface VectorizeInput {
+  content: string;
+  metadata: {
+    filename: string;
+    path: string;
+    type: string;
+    confidence: number;
+  };
+}
+
+interface DocumentMetadata {
   url: string
   title: string
   text: string
@@ -97,48 +106,58 @@ interface ProcessedChunk {
 }
 
 export class ContentVectorizer {
-  private openai: OpenAI
-  private pinecone: Pinecone
-  private readonly indexName: string
-  private readonly templateId: string
-  private readonly batchSize: number = 40
-  private readonly host: string
+  private openai: OpenAI;
+  private pinecone: Pinecone;
+  private config: VectorizerConfig;
 
   constructor(config: VectorizerConfig) {
-    if (!config.openaiApiKey) {
-      throw new Error('OpenAI API Key ist erforderlich')
-    }
-    if (!config.pineconeApiKey) {
-      throw new Error('Pinecone API Key ist erforderlich')
-    }
-    if (!config.pineconeEnvironment) {
-      throw new Error('Pinecone Environment ist erforderlich')
-    }
-    if (!config.pineconeIndex) {
-      throw new Error('Pinecone Index ist erforderlich')
-    }
-
+    this.config = config;
+    
+    // Initialisiere OpenAI
     this.openai = new OpenAI({
       apiKey: config.openaiApiKey
-    })
-
-    // Pinecone-Client mit minimaler Konfiguration
+    });
+    
+    // Initialisiere Pinecone
     this.pinecone = new Pinecone({
       apiKey: config.pineconeApiKey
-    })
+    });
+  }
 
-    this.indexName = config.pineconeIndex || process.env.PINECONE_INDEX || 'dialog-engine'
-    this.host = config.pineconeHost || process.env.PINECONE_HOST || ''
-    this.templateId = config.templateId
-    console.log('ContentVectorizer initialisiert mit Index:', this.indexName)
+  public async vectorize(input: VectorizeInput) {
+    try {
+      // Generiere Embedding mit OpenAI
+      const embeddingResponse = await this.openai.embeddings.create({
+        model: 'text-embedding-ada-002',
+        input: input.content
+      });
+
+      const embedding = embeddingResponse.data[0].embedding;
+
+      // Speichere in Pinecone
+      const index = this.pinecone.index(this.config.pineconeIndex);
+      
+      await index.upsert([{
+        id: `${this.config.templateId}-${Date.now()}`,
+        values: embedding,
+        metadata: {
+          templateId: this.config.templateId,
+          ...input.metadata
+        }
+      }]);
+
+    } catch (error) {
+      console.error('Fehler bei der Vektorisierung:', error);
+      throw error;
+    }
   }
 
   private async validateIndex(): Promise<void> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       const stats = await index.describeIndexStats()
       console.log('Index-Validierung erfolgreich:', {
-        indexName: this.indexName,
+        indexName: this.config.pineconeIndex,
         totalVectors: stats.totalRecordCount,
         dimensions: stats.dimension
       })
@@ -171,7 +190,7 @@ export class ContentVectorizer {
     }
 
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       
       console.log(`Verarbeite Batch ${currentBatch}/${totalBatches} mit ${batch.length} Vektoren`)
       
@@ -195,13 +214,13 @@ export class ContentVectorizer {
         values: vector.values,
         metadata: {
           ...vector.metadata,
-          templateId: this.templateId,
+          templateId: this.config.templateId,
           lastUpdated: new Date().toISOString()
         }
       }))
 
       console.log('Sende Upsert-Request an Pinecone:', {
-        indexName: this.indexName,
+        indexName: this.config.pineconeIndex,
         vectorCount: vectors.length,
         sampleVector: {
           id: vectors[0].id,
@@ -278,7 +297,7 @@ export class ContentVectorizer {
       text: String(metadata.text || ''),
       content: String(metadata.content || ''),
       contentType: String(metadata.contentType || 'webpage'),
-      templateId: String(metadata.templateId || this.templateId),
+      templateId: String(metadata.templateId || this.config.templateId),
       language: String(metadata.language || 'de'),
       lastModified: String(metadata.lastModified || new Date().toISOString())
     }
@@ -463,7 +482,7 @@ export class ContentVectorizer {
       // Validiere und bereinige Metadaten
       const validatedMetadata = this.validateMetadata({
         ...metadata,
-        templateId: this.templateId,
+        templateId: this.config.templateId,
         text: content,
         lastModified: new Date().toISOString()
       })
@@ -493,7 +512,7 @@ export class ContentVectorizer {
       }))
 
       // Verarbeite in Batches
-      const batchSize = this.batchSize
+      const batchSize = 40
       const totalBatches = Math.ceil(vectors.length / batchSize)
 
       for (let i = 0; i < vectors.length; i += batchSize) {
@@ -517,7 +536,7 @@ export class ContentVectorizer {
     filter?: Record<string, any>
   ): Promise<SearchResult[]> {
     const queryEmbedding = await this.getEmbedding(query)
-    const index = this.pinecone.index(this.indexName)
+    const index = this.pinecone.index(this.config.pineconeIndex)
 
     const results = await index.query({
       vector: queryEmbedding,
@@ -543,12 +562,12 @@ export class ContentVectorizer {
 
   // Getter für den Pinecone-Index
   getPineconeIndex() {
-    return this.pinecone.index(this.indexName)
+    return this.pinecone.index(this.config.pineconeIndex)
   }
 
   public async getAllDocuments(templateId: string, limit: number = 50): Promise<SearchResult[]> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       
       // Erstelle einen Dummy-Vektor für die Suche
       const dummyVector = Array(1536).fill(0)
@@ -575,7 +594,7 @@ export class ContentVectorizer {
 
   public async updateContentType(contentId: string, newType: string): Promise<void> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       
       // Hole den existierenden Vektor
       const existingVector = await index.fetch([contentId])
@@ -615,11 +634,11 @@ export class ContentVectorizer {
       const links = metadata.links || {}
       
       await index.upsert([{
-        id: `${this.templateId}-${Date.now()}`,
+        id: `${this.config.templateId}-${Date.now()}`,
         values: embedding,
         metadata: {
           ...metadata,
-          templateId: this.templateId,
+          templateId: this.config.templateId,
           content,
           // Speichere Links als JSON-Strings
           links_internal: JSON.stringify(links.internal?.map((link: { url: string; title: string }) => ({
@@ -656,12 +675,12 @@ export class ContentVectorizer {
 
   public async deleteAllVectors() {
     try {
-      console.log('Lösche alle Vektoren für Template:', this.templateId)
+      console.log('Lösche alle Vektoren für Template:', this.config.templateId)
       const index = this.getPineconeIndex()
       
       await index.deleteMany({
         filter: {
-          templateId: { $eq: this.templateId }
+          templateId: { $eq: this.config.templateId }
         }
       })
       
@@ -682,7 +701,7 @@ export class ContentVectorizer {
     compareHash?: string
   ): Promise<void> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       
       // Hole existierenden Vektor
       const existingVectors = await index.fetch([documentId])
@@ -692,7 +711,7 @@ export class ContentVectorizer {
         // Dokument existiert nicht - erstelle neu
         await this.vectorizeContent(newContent, {
           ...metadata,
-          templateId: this.templateId
+          templateId: this.config.templateId
         })
         return
       }
@@ -704,7 +723,7 @@ export class ContentVectorizer {
           id: documentId,
           metadata: {
             ...metadata,
-            templateId: this.templateId,
+            templateId: this.config.templateId,
             lastUpdated: new Date().toISOString()
           }
         })
@@ -725,7 +744,7 @@ export class ContentVectorizer {
     metadata: DocumentMetadata
   ): Promise<void> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       
       // Generiere Hash für Content-Vergleich
       const contentHash = await this.generateContentHash(newContent)
@@ -740,7 +759,7 @@ export class ContentVectorizer {
           id: documentId,
           metadata: {
             ...metadata,
-            templateId: this.templateId,
+            templateId: this.config.templateId,
             contentHash,
             lastUpdated: new Date().toISOString()
           }
@@ -756,7 +775,7 @@ export class ContentVectorizer {
         id: `${documentId}_${index}`,
         values: chunk.embedding,
         metadata: {
-          templateId: this.templateId,
+          templateId: this.config.templateId,
           content: chunk.content,
           type: chunk.type,
           section: chunk.metadata.section || '',
@@ -796,7 +815,7 @@ export class ContentVectorizer {
 
   private async findChunkIds(documentId: string): Promise<string[]> {
     try {
-      const index = this.pinecone.index(this.indexName)
+      const index = this.pinecone.index(this.config.pineconeIndex)
       const dummyVector = new Array(1536).fill(0)
       
       const queryResponse = await index.query({
@@ -820,7 +839,7 @@ export class ContentVectorizer {
     values: number[]
     metadata: Record<string, string | number | boolean | null>
   }>) {
-    const index = this.pinecone.index(this.indexName)
+    const index = this.pinecone.index(this.config.pineconeIndex)
     
     // Konvertiere alle Metadaten-Werte in gültige Pinecone-Werte
     const processedVectors = vectors.map(vector => ({

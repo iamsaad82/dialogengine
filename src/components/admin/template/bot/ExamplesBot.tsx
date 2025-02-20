@@ -11,6 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BotResponsePreview } from '@/components/preview/BotResponsePreview'
 import { useState, useRef } from 'react'
 import { cn } from "@/lib/utils"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
+import type { ExamplesBotConfig } from '@/lib/types/template'
+import { ExampleEditor } from '../examples/ExampleEditor'
 
 type MetadataFieldType = 'url' | 'text' | 'datetime-local' | 'checkbox'
 
@@ -95,87 +100,57 @@ function TypeSelector({ value, onChange }: TypeSelectorProps) {
 }
 
 interface ExamplesBotProps {
-  examples: Example[]
-  onChange: (examples: Example[]) => void
+  config: ExamplesBotConfig
+  onChange: (config: ExamplesBotConfig) => void
 }
 
-export function ExamplesBot({ examples, onChange }: ExamplesBotProps) {
+export function ExamplesBot({ config, onChange }: ExamplesBotProps) {
   const [previewExample, setPreviewExample] = useState<Example | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [newQuestion, setNewQuestion] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const [showEditor, setShowEditor] = useState(false)
 
-  const addExample = () => {
-    if (!newQuestion.trim()) return
-
-    const newExample: Example = {
-      question: newQuestion.trim(),
-      answer: '',
-      type: 'info',
-      context: '',
-      metadata: {
-        buttonText: '',
-        url: '',
-        image: '',
-        date: '',
-        time: '',
-        sessions: '',
-        available: false,
-        title: '',
-        address: '',
-        price: '',
-        fileType: '',
-        fileSize: '',
-        videoUrl: '',
-        relatedQuestions: ''
-      }
-    }
-    
-    const updatedExamples = [...examples, newExample]
-    onChange(updatedExamples)
-    setNewQuestion('') // Setze das Eingabefeld zurück
-    inputRef.current?.focus() // Fokussiere das Eingabefeld wieder
-  }
-
-  const updateExample = (index: number, field: string, value: string | boolean) => {
-    const updatedExamples = [...examples]
-    const example = updatedExamples[index]
-    
-    if (!example) return
-
-    const metadataFields = [
-      'title', 'time', 'sessions', 'available', 'buttonText', 'url', 
-      'address', 'date', 'image', 'videoUrl', 'price', 'fileSize', 
-      'fileType', 'relatedQuestions'
-    ]
-    
-    if (metadataFields.includes(field)) {
-      updatedExamples[index] = {
-        ...example,
-        metadata: {
-          ...example.metadata,
-          [field]: value
-        }
-      }
-    } else {
-      updatedExamples[index] = {
-        ...example,
-        [field]: value
-      }
-    }
-
-    onChange(updatedExamples)
+  const addExample = (example: Example) => {
+    onChange({
+      ...config,
+      examples: [...(config.examples || []), example]
+    })
+    setShowEditor(false)
   }
 
   const removeExample = (index: number) => {
-    const updatedExamples = examples.filter((_, i) => i !== index)
-    onChange(updatedExamples)
+    onChange({
+      ...config,
+      examples: config.examples.filter((_, i) => i !== index)
+    })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      addExample()
+      addExample({
+        question: newQuestion.trim(),
+        answer: '',
+        type: 'info',
+        context: '',
+        metadata: {
+          buttonText: '',
+          url: '',
+          image: '',
+          date: '',
+          time: '',
+          sessions: '',
+          available: false,
+          title: '',
+          address: '',
+          price: '',
+          fileType: '',
+          fileSize: '',
+          videoUrl: '',
+          relatedQuestions: ''
+        }
+      })
     }
   }
 
@@ -246,128 +221,44 @@ export function ExamplesBot({ examples, onChange }: ExamplesBotProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Quick-Add Bar */}
-      <div className="flex items-center gap-2 p-4 bg-secondary/10 rounded-lg">
-        <Input 
-          ref={inputRef}
-          placeholder="Neue Frage eingeben..."
-          value={newQuestion}
-          onChange={(e) => setNewQuestion(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <Button onClick={addExample} disabled={!newQuestion.trim()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Hinzufügen
-        </Button>
-      </div>
-
-      {/* Beispiel-Liste */}
-      <div className="space-y-6">
-        {examples.map((example, index) => (
-          <div key={index} className="space-y-4 p-4 border rounded-lg">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-4">
-                <div className="space-y-2">
-                  <Label>Frage</Label>
-                  <Input
-                    value={example.question}
-                    onChange={(e) => updateExample(index, 'question', e.target.value)}
-                    placeholder="Frage eingeben..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Antwort</Label>
-                  <Textarea
-                    value={example.answer}
-                    onChange={(e) => updateExample(index, 'answer', e.target.value)}
-                    placeholder="Antwort eingeben..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Kontext (Optional)</Label>
-                  <Input
-                    value={example.context}
-                    onChange={(e) => updateExample(index, 'context', e.target.value)}
-                    placeholder="Zusätzlicher Kontext..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Antwort-Typ</Label>
-                  <TypeSelector
-                    value={example.type}
-                    onChange={(value) => updateExample(index, 'type', value)}
-                  />
-                </div>
-
-                {/* Metadata Felder basierend auf dem Typ */}
-                {getMetadataFields(example.type as ResponseType).map((field) => (
-                  <div key={field.field} className="space-y-2">
-                    <Label>{field.label}</Label>
-                    {field.type === 'checkbox' ? (
-                      <input
-                        type="checkbox"
-                        checked={!!example.metadata[field.field]}
-                        onChange={(e) => updateExample(index, field.field, e.target.checked)}
-                      />
-                    ) : (
-                      <Input
-                        type={field.type}
-                        value={example.metadata[field.field] as string}
-                        onChange={(e) => updateExample(index, field.field, e.target.value)}
-                      />
-                    )}
+    <div className="space-y-4">
+      <div>
+        <Label>Beispiele</Label>
+        <div className="grid grid-cols-1 gap-4 mt-2">
+          {config.examples?.map((example, index) => (
+            <Card key={index} className="p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-medium">{example.question}</h3>
+                  <p className="text-sm text-gray-500">{example.answer}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge variant="secondary">
+                      {example.type}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
+                </div>
                 <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setPreviewExample(example)
-                    setIsPreviewOpen(true)
-                  }}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
+                  variant="destructive"
                   onClick={() => removeExample(index)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  Entfernen
                 </Button>
               </div>
-            </div>
-          </div>
-        ))}
-
-        {examples.length === 0 && (
-          <div className="text-center p-8 text-muted-foreground">
-            Keine Beispiele vorhanden. Fügen Sie oben neue Fragen hinzu.
-          </div>
-        )}
+            </Card>
+          ))}
+        </div>
       </div>
 
-      {/* Vorschau-Dialog */}
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Vorschau</DialogTitle>
-            <DialogDescription>
-              So wird die Antwort im Chat angezeigt
-            </DialogDescription>
-          </DialogHeader>
-          {previewExample && (
-            <BotResponsePreview example={previewExample} />
-          )}
-        </DialogContent>
-      </Dialog>
+      {showEditor ? (
+        <ExampleEditor
+          onSave={addExample}
+          onCancel={() => setShowEditor(false)}
+        />
+      ) : (
+        <Button onClick={() => setShowEditor(true)}>
+          Beispiel hinzufügen
+        </Button>
+      )}
     </div>
   )
 } 

@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { BotEditor } from './template/BotEditor'
 import { BrandingEditor } from './template/BrandingEditor'
 import { ContentEditor } from './template/ContentEditor'
-import { MetadataEditor } from './template/MetadataEditor'
+import { MetadataEditor } from './template/meta/MetadataEditor'
 import { AnalyticsEditor } from './template/AnalyticsEditor'
 import { toast } from 'sonner'
 import { Loader2, Save } from 'lucide-react'

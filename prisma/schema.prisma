@@ -25,18 +25,25 @@ model Template {
   type              String              @default("NEUTRAL")
   active            Boolean             @default(true)
   subdomain         String?             @unique
-  jsonContent       String?
-  jsonBranding      String?
-  jsonBot           String?
-  jsonMeta          String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   flowiseConfigId   String?             @unique
+  branding          Json                @default("{}")
+  config            Json                @default("{}")
+  content           Json                @default("{\"metadata\": {}, \"sections\": []}")
+  description       String?
+  handlers          Json                @default("[]")
+  meta              Json                @default("{}")
+  responses         Json                @default("{\"rules\": [], \"templates\": []}")
+  bot_config        Json?               @default("{}")
+  bot_type          String?             @db.VarChar(50)
   extractionSchema  ExtractionSchema?
+  uploadJobs        UploadJob[]
   chatLogs          ChatLog[]
   template_handlers template_handlers[]
   flowiseConfig     FlowiseConfig?      @relation(fields: [flowiseConfigId], references: [id])
 
+  @@index([bot_type])
   @@map("templates")
 }
 
@@ -100,9 +107,12 @@ model ExtractionSchema {
   description String?
   version     Int      @default(1)
   fields      Json
+  metadata    Json?    @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 model template_handlers {
@@ -111,11 +121,26 @@ model template_handlers {
   type       String
   name       String
   active     Boolean  @default(true)
-  metadata   Json
-  config     Json
+  metadata   Json     @default("{}")
+  config     Json     @default("{}")
   createdAt  DateTime @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime @updatedAt
   templates  Template @relation(fields: [templateId], references: [id])
+
+  @@index([type])
+  @@index([templateId])
+}
+
+model UploadJob {
+  id             String   @id
+  templateId     String
+  status         String
+  totalFiles     Int
+  processedFiles Int
+  metadata       Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  template       Template @relation(fields: [templateId], references: [id])
 }
 
 enum UserRole {

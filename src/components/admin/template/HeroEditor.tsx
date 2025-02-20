@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 
 type HeroSection = {
   title: string
-  subtitle: string
+  subtitle?: string
   description: string
 }
 
@@ -15,12 +15,12 @@ type HeroEditorProps = {
   onChange: (hero: HeroSection) => void
 }
 
-export function HeroEditor({ hero, onChange }: HeroEditorProps) {
+export function HeroEditor({ hero = { title: '', subtitle: '', description: '' }, onChange }: HeroEditorProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof HeroSection, string>>>({})
   const [charCount, setCharCount] = useState({
-    title: hero.title.length,
-    subtitle: hero.subtitle.length,
-    description: hero.description.length
+    title: hero?.title?.length || 0,
+    subtitle: hero?.subtitle?.length || 0,
+    description: hero?.description?.length || 0
   })
 
   const handleChange = (field: keyof HeroSection, value: string) => {
@@ -31,7 +31,7 @@ export function HeroEditor({ hero, onChange }: HeroEditorProps) {
     }))
 
     // Validate field
-    const error = !validateRequired(value) ? getErrorMessage(field, 'required') : ''
+    const error = field !== 'subtitle' && !validateRequired(value) ? getErrorMessage(field, 'required') : ''
     setErrors(prev => ({
       ...prev,
       [field]: error
@@ -48,7 +48,7 @@ export function HeroEditor({ hero, onChange }: HeroEditorProps) {
   useEffect(() => {
     const newErrors: typeof errors = {}
     Object.entries(hero).forEach(([key, value]) => {
-      if (!validateRequired(value)) {
+      if (key !== 'subtitle' && !validateRequired(value)) {
         newErrors[key as keyof HeroSection] = getErrorMessage(key, 'required')
       }
     })

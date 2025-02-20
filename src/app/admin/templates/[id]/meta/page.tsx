@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MetadataEditor } from '@/components/admin/template/MetadataEditor'
+import { MetadataEditor } from '@/components/admin/template/meta/MetadataEditor'
 import { ParsedMeta } from '@/lib/types/template'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'

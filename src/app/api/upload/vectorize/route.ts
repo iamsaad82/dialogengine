@@ -9,7 +9,8 @@ import { WebsiteScanner } from '@/lib/services/scanner'
 import { headers } from 'next/headers'
 import { PineconeService } from '@/lib/services/pineconeService'
 import { JobManager } from '@/lib/services/jobManager'
-import { ContentTypeEnum } from '@/lib/types/contentTypes'
+import { ContentTypeEnum, isValidContentType } from '@/lib/types/contentTypes'
+import type { ContentType as DocumentContentType } from '@/lib/types/contentTypes'
 import { ProcessedDocument, DocumentMetadata } from '@/lib/services/document/types'
 
 // Initialisiere Services
@@ -69,9 +70,10 @@ async function checkForDuplicates(file: File, templateId: string) {
       input: fileContent.slice(0, 1000) // Nur die ersten 1000 Zeichen
     })
 
+    const pineconeService = new PineconeService()
+    const pinecone = pineconeService.getPinecone()
     const index = pinecone.index(process.env.PINECONE_INDEX || '')
     
-    // @ts-ignore - namespace ist in der aktuellen API verfügbar
     const queryResponse = await index.query({
       vector: embedding.data[0].embedding,
       filter: { templateId },
@@ -105,19 +107,22 @@ async function processDocument(file: File, templateId: string): Promise<Processe
       url: file.name
     })
 
-    if (!detectionResult || detectionResult.type === ContentTypeEnum.DEFAULT) {
+    if (!detectionResult || !isValidContentType(detectionResult.type)) {
       throw new Error('Content-Type Detection fehlgeschlagen')
     }
 
     const metadata: DocumentMetadata = {
       id: `${templateId}:${file.name}`,
-      type: detectionResult.type,
+      type: detectionResult.type as DocumentContentType,
       title: file.name,
       language: 'de',
       source: file.name,
       lastModified: new Date().toISOString(),
       templateId,
-      templateMetadata: {}
+      templateMetadata: {},
+      actions: [],
+      hasImages: false,
+      contactPoints: []
     }
 
     return {
@@ -173,8 +178,14 @@ async function waitForIndexReadiness(pineconeService: PineconeService, indexName
 
 export async function POST(req: Request) {
   let formData: FormData | null = null
+  const startTime = Date.now()
   
   try {
+    // Setze Timeout für Render
+    if (startTime + 50000 < Date.now()) {
+      throw new Error('Zeitüberschreitung bei der Verarbeitung')
+    }
+
     formData = await req.formData()
     const file = formData.get('file') as File
     const templateId = formData.get('templateId') as string
@@ -187,23 +198,64 @@ export async function POST(req: Request) {
       )
     }
 
-    // Initialisiere Services
+    // Prüfe Dateigröße (Render-Limit: 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Datei ist zu groß (Maximum: 5MB)' },
+        { status: 413 }
+      )
+    }
+
+    // Aktualisiere Job-Status auf "processing"
+    await jobManager.updateJob({
+      jobId,
+      phase: 'processing',
+      progress: 10,
+      message: 'Starte Verarbeitung...'
+    })
+
+    // Initialisiere Services mit Retry-Logik
     const indexName = `dialog-engine-${templateId}`
     const pineconeService = new PineconeService()
+    
+    let retryCount = 0
+    const maxRetries = 3
 
-    // Warte auf Index-Bereitschaft
-    console.log('[Upload] Stelle Index-Bereitschaft sicher...')
-    await waitForIndexReadiness(pineconeService, indexName)
-    console.log('[Upload] Index ist bereit, fahre fort mit Upload...')
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`[Upload] Verbindungsversuch ${retryCount + 1}/${maxRetries}`)
+        await waitForIndexReadiness(pineconeService, indexName, 10)
+        break
+      } catch (error) {
+        retryCount++
+        if (retryCount === maxRetries) throw error
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+    }
 
-    // Verarbeite das Dokument
+    // Verarbeite das Dokument mit Fortschritts-Updates
+    await jobManager.updateJob({
+      jobId,
+      phase: 'processing',
+      progress: 30,
+      message: 'Verarbeite Dokument...'
+    })
+
     const processedDoc = await processDocument(file, templateId)
 
-    // Aktualisiere Job-Status
+    await jobManager.updateJob({
+      jobId,
+      phase: 'processing',
+      progress: 70,
+      message: 'Dokument verarbeitet, speichere...'
+    })
+
+    // Erfolgreicher Upload
     await jobManager.updateJob({
       jobId,
       phase: 'completed',
-      progress: 100
+      progress: 100,
+      message: 'Upload erfolgreich abgeschlossen'
     })
 
     return NextResponse.json({ 
@@ -216,7 +268,11 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('[Upload] Fehler beim Datei-Upload:', error)
     
-    // Aktualisiere Job-Status bei Fehler
+    // Detaillierte Fehlerbehandlung
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Unbekannter Fehler bei der Verarbeitung'
+
     try {
       if (formData) {
         const jobId = formData.get('jobId') as string
@@ -227,7 +283,7 @@ export async function POST(req: Request) {
             progress: 0,
             error: {
               file: 'unknown',
-              message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+              message: errorMessage,
               phase: 'error',
               timestamp: new Date()
             }
@@ -238,8 +294,12 @@ export async function POST(req: Request) {
       console.error('[Upload] Fehler beim Aktualisieren des Job-Status:', jobError)
     }
 
+    // Sende spezifische Fehlermeldung zurück
     return NextResponse.json(
-      { error: 'Fehler beim Verarbeiten der Datei' },
+      { 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

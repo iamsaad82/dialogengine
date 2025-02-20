@@ -1,13 +1,19 @@
 /**
  * Basis-Interface für strukturelle Elemente
  */
-export type ElementType = 'section' | 'list' | 'table' | 'xml'
+export type ElementType = 'heading' | 'paragraph' | 'list' | 'table' | 'image' | 'code' | 'quote'
 
 export interface BaseElement {
   type: ElementType
-  content?: string
-  attributes?: Record<string, string>
+  content: string
+  level?: number
   children?: StructuralElement[]
+  metadata?: {
+    id?: string
+    class?: string
+    style?: string
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -31,12 +37,12 @@ export interface TableElement extends BaseElement {
  * Abschnitts-Element
  */
 export interface SectionElement extends BaseElement {
-  type: 'section'
+  type: 'heading'
   title?: string
 }
 
 export interface XmlElement extends BaseElement {
-  type: 'xml'
+  type: 'code'
   tagName: string
 }
 

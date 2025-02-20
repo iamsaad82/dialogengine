@@ -2,7 +2,7 @@
 
 ## Zu entfernende Komponenten
 
-### 1. Alte AOK-Handler-Struktur
+### 1. Alte Handler-Struktur
 Kompletter Ordner: `/src/lib/services/handlers/aok/`
 
 #### Betroffene Dateien:
@@ -19,9 +19,75 @@ Kompletter Ordner: `/src/lib/services/handlers/aok/`
 - `VisionHearingHandler.ts`
 - `types.ts`
 
-### 2. Aktive Komponenten (NICHT entfernen)
-- `/src/lib/services/search/handlers/specialized/aok.ts`
-- `/src/lib/services/search/handlers/manager.ts`
+### 2. Redundante Content-Bereiche
+- `/src/app/admin/templates/[id]/content/`
+- `/src/app/admin/templates/[id]/content-types/`
+Diese werden in einem neuen, vereinheitlichten Content-Management zusammengeführt.
+
+### 3. Veraltete Bot-Konfiguration
+- Alte AOK-spezifische Bot-Implementierung
+- Manuelle Handler-Zuweisungen
+- Nicht-templatebasierte Konfigurationen
+
+### 4. Aktive Komponenten (NICHT entfernen)
+- `/src/lib/services/search/handlers/specialized/aok.ts` (Als Referenz für Migration)
+- `/src/lib/services/search/handlers/manager.ts` (Wird angepasst)
+- `/src/components/admin/template/BotEditor.tsx` (Wird erweitert)
+- `/src/components/admin/ContentTypeManager.tsx` (Wird erweitert)
+
+## Neue Struktur
+
+### 1. Handler-System
+```typescript
+// Neue Handler-Struktur
+interface TemplateHandler {
+  id: string;
+  templateId: string;
+  type: string;
+  capabilities: string[];
+  config: HandlerConfig;
+  metadata: HandlerMetadata;
+}
+
+// Datenbank-Schema (existiert bereits)
+model template_handlers {
+  id         String
+  templateId String
+  type       String
+  name       String
+  active     Boolean
+  metadata   Json
+  config     Json
+  templates  Template
+}
+```
+
+### 2. Bot-System
+```typescript
+// Neue Bot-Typen
+type BotType = 
+  | 'smart-search'
+  | 'flowise'
+  | 'examples'
+  | 'template-handler';
+
+// Bot-Konfiguration
+interface BotConfig {
+  type: BotType;
+  config: Record<string, any>;
+  handlers: string[]; // Handler-IDs
+}
+```
+
+### 3. Content-Management
+```typescript
+// Vereinheitlichtes Content-System
+interface ContentManagement {
+  vectors: VectorStore;
+  types: ContentTypes;
+  validation: ContentRules;
+}
+```
 
 ## Bereinigungsschritte
 
@@ -35,25 +101,69 @@ git push origin backup/pre-cleanup
 ```
 
 ### 2. Validierung
-1. Überprüfen der Import-Statements im gesamten Projekt
-2. Sicherstellen, dass keine versteckten Abhängigkeiten existieren
-3. Testen der aktiven Komponenten
+1. Import-Statements überprüfen
+2. Abhängigkeiten analysieren
+3. Aktive Komponenten testen
+4. Datenbank-Integrität sichern
 
-### 3. Schrittweise Entfernung
-1. Entfernen der einzelnen Handler-Klassen
-2. Entfernen des BaseAOKHandler
-3. Entfernen des AOKHandlerManager
-4. Entfernen der Types
+### 3. Schrittweise Migration
+
+#### 3.1 Handler-Migration
+1. Template-Handler in Datenbank übertragen
+2. Handler-Logik anpassen
+3. Tests durchführen
+
+#### 3.2 Content-Vereinheitlichung
+1. Content-Bereiche zusammenführen
+2. Vektorisierung integrieren
+3. UI anpassen
+
+#### 3.3 Bot-System-Update
+1. Neue Bot-Typen implementieren
+2. Handler-Integration anpassen
+3. Konfiguration migrieren
 
 ### 4. Tests
-1. Unit-Tests ausführen
-2. Integration-Tests ausführen
-3. End-to-End-Tests ausführen
+1. Unit-Tests für neue Struktur
+2. Integration-Tests für Migration
+3. End-to-End-Tests für Gesamtsystem
 
 ### 5. Deployment
-1. Deployment in Staging-Umgebung
-2. Ausführliche Tests in Staging
-3. Deployment in Produktion
+1. Staging-Deployment
+2. Migrations-Validierung
+3. Produktions-Rollout
+
+## Monitoring
+
+### 1. Während der Migration
+- Error-Logs überwachen
+- Performance-Metriken tracken
+- API-Responses validieren
+- Datenbank-Integrität prüfen
+
+### 2. Nach der Migration
+- System-Performance vergleichen
+- Handler-Effizienz messen
+- Bot-Antwortzeiten analysieren
+- Vector-Suche evaluieren
+
+## Dokumentation
+
+### 1. Changelog
+- Entfernte Komponenten dokumentieren
+- Migrationspfade beschreiben
+- Systemänderungen erfassen
+
+### 2. Architektur-Updates
+- System-Dokumentation aktualisieren
+- API-Dokumentation anpassen
+- Entwickler-Guides erneuern
+
+### 3. Neue Dokumentation
+- Handler-System beschreiben
+- Bot-Typen dokumentieren
+- Content-Management erklären
+- Vector-Store-Integration beschreiben
 
 ## Rollback-Plan
 
@@ -65,29 +175,11 @@ git push origin backup/pre-cleanup:main -f
 ```
 
 ### 2. Gradueller Rollback
-- Einzelne Komponenten können aus dem Backup-Branch wiederhergestellt werden
-- Git-History bleibt erhalten für detaillierte Analyse
+- Komponenten einzeln wiederherstellen
+- Datenbank-Backup einspielen
+- Konfiguration wiederherstellen
 
-## Monitoring
-
-### 1. Während der Bereinigung
-- Error-Logs überwachen
-- Performance-Metriken beobachten
-- API-Responses überprüfen
-
-### 2. Nach der Bereinigung
-- System-Performance vergleichen
-- Memory-Usage analysieren
-- Response-Zeiten messen
-
-## Dokumentation
-
-### 1. Changelog
-- Dokumentation aller entfernten Komponenten
-- Begründung der Entfernung
-- Auswirkungen auf das System
-
-### 2. Architektur-Updates
-- Aktualisierung der System-Dokumentation
-- Anpassung der API-Dokumentation
-- Update der Entwickler-Guides 
+### 3. Notfall-Prozeduren
+- Datenbank-Snapshots
+- API-Versionierung
+- Feature-Flags 

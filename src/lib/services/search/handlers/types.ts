@@ -1,13 +1,16 @@
 import { ContentType } from '@/lib/types/contentTypes'
 
 export interface HandlerConfig {
+  openaiApiKey: string
+  anthropicApiKey?: string
+  mistralApiKey?: string
+  pineconeApiKey: string
+  pineconeEnvironment: string
+  pineconeIndex: string
   templateId: string
-  language?: string
   redisUrl?: string
-  openaiApiKey?: string
-  pineconeApiKey?: string
-  pineconeEnvironment?: string
-  pineconeIndex?: string
+  temperature?: number
+  maxTokens?: number
 }
 
 export interface HandlerContext {

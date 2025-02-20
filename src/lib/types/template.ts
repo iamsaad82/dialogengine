@@ -11,12 +11,11 @@ import {
   metaSchema,
   templateSchema
 } from '../schemas/template'
-import { ContentType } from './contentTypes'
 import { DocumentMetadata, DocumentLinks } from '../services/document/types'
 
 export const TemplateTypeEnum = {
-  CUSTOM: 'CUSTOM',
-  FLOWISE: 'FLOWISE'
+  NEUTRAL: 'NEUTRAL',
+  CUSTOM: 'CUSTOM'
 } as const
 
 export type TemplateType = typeof TemplateTypeEnum[keyof typeof TemplateTypeEnum]
@@ -24,27 +23,43 @@ export type TemplateType = typeof TemplateTypeEnum[keyof typeof TemplateTypeEnum
 export interface Template {
   id: string
   name: string
-  type: TemplateType
+  type: string
   active: boolean
   subdomain: string
-  jsonContent: string | null
-  jsonBranding: string | null
-  jsonBot: string | null
-  jsonMeta: string | null
   createdAt: Date
   updatedAt: Date
   flowiseConfigId: string | null
-  flowiseConfig: any | null
-  description: string
+  branding: BrandingConfig
   config: {
-    examples?: string[]
-    flowiseId?: string
-    smartSearch?: SmartSearchConfig
+    smartSearch: {
+      urls: string[]
+      provider: string
+      chunkSize: number
+      maxTokens: number
+      temperature: number
+      excludePatterns: string[]
+    }
   }
-  handlers?: HandlerConfig[]
-  branding?: BrandingConfig
-  showcase?: ShowcaseConfig
-  meta?: MetaConfig
+  content: {
+    metadata: Record<string, any>
+    sections: Section[]
+  }
+  description: string
+  handlers: any[]
+  meta: {
+    url: string
+    image: string
+    title: string
+    author: string
+    keywords: string[]
+    description: string
+  }
+  responses: {
+    rules: any[]
+    templates: any[]
+  }
+  bot_config: Record<string, any>
+  bot_type: string | null
 }
 
 export type ParsedTemplate = {
@@ -66,6 +81,7 @@ export type ParsedTemplate = {
 export type DbTemplate = Template
 
 export type IconType = z.infer<typeof iconTypeSchema>
+export type ContentType = 'text' | 'list' | 'table' | 'card' | 'link' | 'download' | 'image' | 'video' | 'custom'
 export type ResponseType = ContentType
 
 export type Feature = z.infer<typeof featureSchema>
@@ -86,6 +102,11 @@ export interface ParsedContent {
     cta: {
       title: string
       question: string
+    }
+    contact: {
+      text: string
+      type: 'email' | 'phone'
+      value: string
     }
   }
   features: Array<{
@@ -133,19 +154,20 @@ export interface FlowiseBotConfig {
   apiKey: string
 }
 
-export interface AOKBotConfig {
-  pineconeApiKey: string
-  pineconeEnvironment: string
-  pineconeIndex: string
-  openaiApiKey: string
+export interface TemplateHandlerConfig {
+  handlers: string[] // IDs der template_handlers
+  config: Record<string, any>
 }
 
-export interface ParsedBot {
-  type: 'smart-search' | 'flowise' | 'aok-handler' | 'examples'
-  smartSearch?: SmartSearchConfig
-  flowise?: FlowiseBotConfig
-  aokHandler?: AOKBotConfig
-  examples?: Example[]
+export interface ExamplesBotConfig {
+  examples: Example[]
+}
+
+export type BotType = 'dialog-engine' | 'flowise' | 'examples'
+
+export type ParsedBot = {
+  type: BotType
+  config: DialogEngineConfig | FlowiseBotConfig | ExamplesBotConfig
 }
 
 export interface ParsedMeta {
@@ -190,9 +212,45 @@ export interface SmartSearch {
   apiEndpoint: string
 }
 
+export interface HandlerConfig {
+  id: string
+  name: string
+  type: string
+  active: boolean
+  capabilities: string[]
+  config: {
+    patterns: string[]
+    metadata: {
+      [key: string]: {
+        type: string
+        required: boolean
+        description?: string
+      }
+    }
+    settings: {
+      matchThreshold: number
+      contextWindow: number
+      maxTokens: number
+      dynamicResponses: boolean
+      includeLinks?: boolean
+      includeContact?: boolean
+      includeSteps?: boolean
+      includePrice?: boolean
+      includeAvailability?: boolean
+      useExactMatches?: boolean
+    }
+  }
+  metadata?: {
+    generated?: boolean
+    timestamp?: string
+    version?: string
+    templateId?: string
+  }
+}
+
 export interface ResponseMetadata {
   // Basis-Felder
-  type?: ContentType
+  type?: ResponseType
   title?: string
   description?: string
   
@@ -336,14 +394,6 @@ interface HandlerMetadata {
   facts: string[]
 }
 
-export interface HandlerConfig {
-  type: ContentType
-  active: boolean
-  metadata: HandlerMetadata
-  responses: string[]
-  settings: HandlerSettings
-}
-
 export interface HandlerTemplateConfig {
   responseTypes: string[];
   requiredMetadata: string[];
@@ -354,6 +404,7 @@ export interface DocumentPattern {
   name: string;
   pattern: string;
   required: boolean;
+  examples: string[];
   extractMetadata?: string[];
 }
 
@@ -369,6 +420,7 @@ export interface MetadataDefinition {
   name: string;
   type: 'string' | 'string[]' | 'date' | 'boolean' | 'number' | 'object';
   required: boolean;
+  description?: string;
   pattern?: string;
   defaultValue?: any;
 }
@@ -393,19 +445,9 @@ export interface TemplateConfig {
 }
 
 export interface BotConfig {
-  type: 'examples' | 'flowise' | 'smart-search' | 'aok-handler'
-  examples?: Example[]
-  flowiseId?: string
-  smartSearch?: SmartSearchConfig
-  aokHandler?: {
-    pineconeApiKey: string
-    pineconeEnvironment: string
-    pineconeIndex: string
-    openaiApiKey: string
-  }
-  handlers?: {
-    [templateId: string]: HandlerConfig[]
-  }
+  type: BotType
+  config: Record<string, any>
+  handlers: string[] // Handler-IDs
 }
 
 export interface BrandingConfig {
@@ -441,4 +483,98 @@ export interface MetaConfig {
   author: string
   image: string
   url: string
+}
+
+export interface ResponseTemplate {
+  id: string
+  type: ResponseType
+  pattern: string
+  components: ResponseComponent[]
+  metadata: ResponseMetadata
+}
+
+export interface ResponseComponent {
+  type: 'text' | 'image' | 'button' | 'list' | 'card'
+  content: string
+  style?: Record<string, any>
+  action?: {
+    type: 'link' | 'callback' | 'download'
+    payload: any
+  }
+}
+
+export interface ResponseRule {
+  id: string
+  condition: {
+    type: ResponseType
+    metadata?: Record<string, any>
+    confidence?: number
+  }
+  template: string
+  fallback?: string
+}
+
+export interface ContentSection {
+  id: string
+  type: 'hero' | 'features' | 'showcase' | 'contact' | 'custom'
+  content: Record<string, any>
+  style?: Record<string, any>
+  metadata?: Record<string, any>
+}
+
+export interface Section {
+  id: string
+  type: string
+  title: string
+  subtitle?: string
+  content: string
+  image?: string
+  items?: Array<{
+    title: string
+    description: string
+    icon?: string
+    image?: string
+  }>
+}
+
+export interface DialogEngineConfig {
+  // Grundeinstellungen
+  provider: 'openai' | 'anthropic' | 'mistral'
+  model: string
+  temperature: number
+  systemPrompt: string
+  
+  // API Keys (optional - falls nicht gesetzt, werden ENV vars verwendet)
+  apiKeys?: {
+    openai?: string
+    anthropic?: string
+    mistral?: string
+  }
+  
+  // Sucheinstellungen
+  matchThreshold: number
+  contextWindow: number
+  maxTokens: number
+  
+  // Antwortoptionen
+  dynamicResponses: boolean
+  includeLinks: boolean
+  includeMetadata: boolean
+  
+  // Erweiterte Einstellungen
+  streaming: boolean
+  fallbackMessage: string
+  maxResponseTime: number
+}
+
+export interface SchemaDefinition {
+  type: ContentType;
+  properties: Record<string, any>;
+  required: string[];
+  metadata?: {
+    category?: string;
+    confidence?: number;
+    source?: string;
+    [key: string]: any;
+  };
 } 

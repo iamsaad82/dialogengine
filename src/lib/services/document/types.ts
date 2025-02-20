@@ -45,7 +45,14 @@ export interface DocumentMetadata {
 
 export interface ProcessedDocument {
   content: string
-  metadata: DocumentMetadata
+  metadata: {
+    title?: string
+    url?: string
+    type?: ContentType
+    language?: string
+    lastModified?: string
+    [key: string]: unknown
+  }
   structuredData: {
     sections: StructuralElement[]
     metadata: Record<string, unknown> & {

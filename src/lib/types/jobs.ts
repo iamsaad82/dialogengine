@@ -41,6 +41,7 @@ export interface JobUpdate {
   progress: number
   currentFile?: string
   details?: string
+  message?: string
   error?: JobError
   startTime?: number
   estimatedTimeRemaining?: number

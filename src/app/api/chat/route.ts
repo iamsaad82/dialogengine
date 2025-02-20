@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { BotService } from '@/lib/services/bot/BotService'
 import { z } from 'zod'
+import { ParsedBot, DialogEngineConfig } from '@/lib/types/template'
 
 // Validierungsschema für Chat-Anfragen
 const chatRequestSchema = z.object({
@@ -22,21 +23,28 @@ export async function POST(request: Request) {
 
     // Hole Template-Konfiguration
     const template = await prisma.template.findUnique({
-      where: { id: validatedData.templateId }
+      where: { id: validatedData.templateId },
+      select: {
+        id: true,
+        bot_config: true
+      }
     })
 
-    if (!template || !template.jsonBot) {
+    if (!template || !template.bot_config) {
       return NextResponse.json(
         { error: 'Template nicht gefunden' },
         { status: 404 }
       )
     }
 
-    const botConfig = JSON.parse(template.jsonBot.toString())
+    const botConfig = JSON.parse(template.bot_config.toString()) as ParsedBot
+    const config = botConfig.config as DialogEngineConfig
 
-    // Initialisiere BotService mit den Umgebungsvariablen
+    // Initialisiere BotService mit den API-Keys aus der Template-Konfiguration
     const botService = new BotService({
-      openaiApiKey: process.env.OPENAI_API_KEY,
+      openaiApiKey: config.apiKeys?.openai || process.env.OPENAI_API_KEY,
+      anthropicApiKey: config.apiKeys?.anthropic || process.env.ANTHROPIC_API_KEY,
+      mistralApiKey: config.apiKeys?.mistral || process.env.MISTRAL_API_KEY,
       pineconeApiKey: process.env.PINECONE_API_KEY,
       pineconeEnvironment: process.env.PINECONE_ENVIRONMENT,
       pineconeIndex: process.env.PINECONE_INDEX,
