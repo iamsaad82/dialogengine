@@ -1,280 +1,102 @@
-# Handler-Dokumentation
+# Handler-System
 
-## Übersicht
+## Überblick
 
-Die Handler-Architektur des DialogEngine-Systems basiert auf einem flexiblen, erweiterbaren Design mit dem `BaseHandler` als Grundlage. Das System ist speziell für die AOK-spezifische Verarbeitung von Benutzeranfragen optimiert.
+Das Handler-System der DialogEngine ist für die automatische Verarbeitung und Beantwortung von Benutzeranfragen zuständig. Es basiert auf einem intelligenten, automatischen Ansatz, der Dokumente analysiert und passende Handler generiert.
 
-## Basis-Architektur
+## Automatische Handler-Generierung
 
-### BaseHandler
+Der Prozess läuft wie folgt ab:
 
-Der `BaseHandler` stellt das Grundgerüst für alle spezialisierten Handler bereit.
+1. **Dokumenten-Upload**
+   - Dokument wird hochgeladen
+   - Automatische Analyse des Inhalts
+   - Erkennung von Dokumenttyp und Struktur
 
-#### Kernfunktionen
+2. **Metadaten-Extraktion**
+   - Schlüsselthemen werden identifiziert
+   - Wichtige Entitäten werden erkannt
+   - Kontaktpunkte werden extrahiert
+   - Links und Verweise werden analysiert
 
-1. **Query-Verarbeitung**
-   ```typescript
-   public async handleSearch(query: string): Promise<any>
-   ```
-   - Zentrale Methode für die Verarbeitung von Suchanfragen
-   - Integriertes Monitoring (Erfolg/Fehler, Latenz)
-   - Fehlerbehandlung und Validierung
+3. **Handler-Generierung**
+   - Basierend auf der Analyse wird ein Handler generiert
+   - Antwortvorlagen werden automatisch erstellt
+   - Relevante Fakten werden extrahiert
+   - Schema wird dynamisch generiert
 
-2. **Validierung**
-   ```typescript
-   protected validateQuery(query: string): void
-   ```
-   - Prüft Mindestlänge (3 Zeichen)
-   - Erweiterbar für spezifische Validierungsregeln
+4. **Vektorisierung**
+   - Dokument wird in Chunks zerlegt
+   - Relevante Teile werden vektorisiert
+   - Metadaten werden mit Vektoren verknüpft
+   - Optimierte Speicherung in Pinecone
 
-3. **Suche**
-   ```typescript
-   protected async search(query: string): Promise<any[]>
-   ```
-   - Abstrakte Methode für die eigentliche Suchlogik
-   - Wird von spezialisierten Handlern implementiert
+## Handler-Konfiguration
 
-4. **Antwort-Formatierung**
-   ```typescript
-   protected formatResponse(results: any[]): any
-   ```
-   - Template-basierte Antwortgenerierung
-   - Variablen-Ersetzung mit {{variable}}
-   - JSON-Parsing der formatierten Antwort
-
-5. **Metadaten-Validierung**
-   ```typescript
-   public validateMetadata(metadata: ContentMetadata): boolean
-   ```
-   - Prüfung von Pflichtfeldern
-   - Typ- und Template-Validierung
-   - Feldspezifische Validierungsregeln
-
-#### Monitoring & Metriken
-
-- Erfolgs- und Fehlerrate pro Handler
-- Latenzzeiten mit verschiedenen Buckets
-- Automatische Metrik-Sammlung
-
-## Implementierte Handler
-
-### Aktuelle AOK-Handler
-
-1. **DentalHandler**
-   - Zahngesundheit und -behandlung
-   - Prophylaxe und Vorsorge
-   - Kostenübernahme
-
-2. **TherapyHandler**
-   - Physiotherapie
-   - Ergotherapie
-   - Psychotherapie
-
-3. **PreventionHandler**
-   - Vorsorgeuntersuchungen
-   - Impfungen
-   - Gesundheitskurse
-
-4. **MedicalTreatmentHandler**
-   - Ärztliche Behandlungen
-   - Medikamente
-   - Heilmittel
-
-5. **RehabilitationHandler**
-   - Reha-Maßnahmen
-   - Antragsstellung
-   - Nachsorge
-
-6. **FamilyHandler**
-   - Familienversicherung
-   - Mutterschaft
-   - Kindervorsorge
-
-7. **VisionHearingHandler**
-   - Sehhilfen
-   - Hörgeräte
-   - Vorsorgeuntersuchungen
-
-8. **SportsHandler**
-   - Präventionskurse
-   - Sportmedizin
-   - Fitness-Programme
-
-9. **NutritionHandler**
-   - Ernährungsberatung
-   - Diätprogramme
-   - Präventionskurse
-
-### TestHandler
-
-Ein Beispiel-Handler für Tests und Entwicklung.
-
-#### Konfiguration
 ```typescript
-{
-  type: 'test',
-  searchFields: ['message', 'content'],
-  responseTemplate: '{"message": "{{message}}"}',
-  validationRules: {
-    type: 'test',
-    required: [],
-    validation: {}
+interface HandlerConfig {
+  id: string;
+  type: string;
+  metadata: HandlerMetadata;
+  capabilities: string[];
+  config: {
+    patterns: string[];
+    metadata: Record<string, any>;
+    settings: {
+      matchThreshold: number;
+      contextWindow: number;
+      maxTokens: number;
+      dynamicResponses: boolean;
+    }
   }
 }
 ```
 
-#### Funktionen
-- Simuliert verschiedene Antwortszenarien:
-  - Schnelle Antworten (`fast`)
-  - Langsame Antworten (`slow`, 2s Verzögerung)
-  - Fehler (`error`)
-  - Standard (100ms Verzögerung)
+## Antwort-Generierung
 
-#### Verwendung
-```typescript
-const handler = new TestHandler();
-const results = await handler.handleSearch("test query");
-```
+Der Handler verwendet verschiedene Strategien zur Antwortgenerierung:
 
-## Geplante Handler-Migration
+1. **Dynamische Antworten**
+   - Basierend auf extrahierten Fakten
+   - Kontext-sensitiv
+   - Mit relevanten Links angereichert
 
-### Phase 1: Vorbereitung
-- [x] Performance-Tests implementiert
-- [x] Monitoring-System eingerichtet
-- [ ] A/B-Testing-Infrastruktur
+2. **Template-basierte Antworten**
+   - Vordefinierte Antwortmuster
+   - Automatisch generierte Templates
+   - Dynamische Platzhalter
 
-### Phase 2: Migration
-Reihenfolge der Handler-Migration:
+3. **Metadaten-Integration**
+   - Einbindung von Kontaktinformationen
+   - Verknüpfung mit relevanten Ressourcen
+   - Zusätzliche Kontextinformationen
 
-1. **MedicalHandler** (Nächster Schritt)
-   - Spezialisiert auf medizinische Anfragen
-   - Komplexe Validierungsregeln
-   - Sensible Datenschutzanforderungen
+## Monitoring & Optimierung
 
-2. **InsuranceHandler**
-   - Versicherungsspezifische Logik
-   - Strukturierte Antwortformate
-   - Integration mit Versicherungs-APIs
+- Performance-Tracking
+- Antwortqualität-Monitoring
+- Automatische Handler-Optimierung
+- Feedback-basierte Verbesserungen
 
-3. **CityAdministrationHandler**
-   - Verwaltungsspezifische Anfragen
-   - Mehrsprachige Unterstützung
-   - Behörden-Schnittstellen
+## Entwicklung & Erweiterung
 
-## Best Practices
+Neue Handler können durch folgende Schritte hinzugefügt werden:
 
-### Handler-Entwicklung
-
-1. **Validierung**
-   - Immer `super.validateQuery()` aufrufen
-   - Spezifische Validierungsregeln hinzufügen
-   - Aussagekräftige Fehlermeldungen
-
-2. **Fehlerbehandlung**
-   - Spezifische Error-Klassen verwenden
-   - Fehler loggen und monitoren
-   - Benutzerfreundliche Fehlermeldungen
-
-3. **Performance**
-   - Caching wo sinnvoll
-   - Asynchrone Operationen
-   - Timeout-Handling
-
-4. **Monitoring**
-   - Relevante Metriken definieren
-   - Latenzzeiten überwachen
-   - Fehlerraten tracken
-
-### Template-System
-
-1. **Response-Templates**
-   - Klare Variablen-Namen
-   - Validierung der Pflichtfelder
-   - Fallback-Werte definieren
-
-2. **Formatierung**
-   - Konsistentes JSON-Format
-   - Typsichere Konvertierung
-   - Escaping von Sonderzeichen
-
-## Migrationsleitfaden
-
-### Schritte für neue Handler
-
-1. **Vorbereitung**
+1. **Template definieren**
    ```typescript
-   import { BaseHandler } from './BaseHandler';
-   
-   export class NewHandler extends BaseHandler {
-     constructor() {
-       super({
-         type: 'new_type',
-         searchFields: ['field1', 'field2'],
-         responseTemplate: '{"key": "{{value}}"}',
-         validationRules: {
-           type: 'new_type',
-           required: ['field1'],
-           validation: {
-             field1: {
-               minLength: 3,
-               maxLength: 100
-             }
-           }
-         }
-       });
-     }
+   interface TemplateConfig {
+     patterns: string[];
+     metadata: MetadataConfig[];
+     responses: ResponseTemplate[];
    }
    ```
 
-2. **Implementierung**
+2. **Handler registrieren**
    ```typescript
-   protected async search(query: string): Promise<any[]> {
-     // Spezifische Suchlogik
-     return [];
-   }
+   await handlerManager.registerHandler(templateId, config);
    ```
 
-3. **Tests**
-   ```typescript
-   describe('NewHandler', () => {
-     it('should handle basic search', async () => {
-       const handler = new NewHandler();
-       const result = await handler.handleSearch('test');
-       expect(result).toBeDefined();
-     });
-   });
-   ```
-
-### Validierung & Testing
-
-1. **Unit Tests**
-   - Erfolgsszenarien
-   - Fehlerfälle
-   - Edge Cases
-
-2. **Integration Tests**
-   - Handler-Interaktion
-   - API-Integration
-   - Performance-Tests
-
-3. **Last-Tests**
-   - Concurrent Requests
-   - Ressourcenverbrauch
-   - Timeout-Verhalten
-
-## Nächste Schritte
-
-1. **A/B-Testing-Infrastruktur**
-   - Framework aufsetzen
-   - Metriken definieren
-   - Analyse-Tools integrieren
-
-2. **MedicalHandler Migration**
-   - Aktuelle Implementierung analysieren
-   - Neue Version entwickeln
-   - Parallel-Betrieb testen
-
-3. **Dokumentation erweitern**
-   - API-Referenz
-   - Beispiel-Implementierungen
-   - Troubleshooting-Guide 
+3. **Testen & Optimieren**
+   - Automatische Tests durchführen
+   - Performance überprüfen
+   - Antwortqualität validieren 

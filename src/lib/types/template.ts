@@ -163,11 +163,14 @@ export interface ExamplesBotConfig {
   examples: Example[]
 }
 
-export type BotType = 'dialog-engine' | 'flowise' | 'examples'
+export type BotType = 'dialog-engine' | 'flowise' | 'examples' | 'template-handler' | 'smart-search'
 
 export type ParsedBot = {
   type: BotType
-  config: DialogEngineConfig | FlowiseBotConfig | ExamplesBotConfig
+  config: DialogEngineConfig | FlowiseBotConfig | ExamplesBotConfig | TemplateHandlerConfig | SmartSearchConfig
+  smartSearch?: SmartSearchConfig
+  examples?: Example[]
+  flowise?: FlowiseBotConfig
 }
 
 export interface ParsedMeta {

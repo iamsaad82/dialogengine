@@ -34,149 +34,81 @@ Die Dialog Engine verwendet einen mehrschichtigen Testansatz, um die Qualität u
 
 ### 2.1 Unit Tests
 
+#### Document Processor
 ```typescript
-// Handler Tests
-describe('DentalHandler', () => {
-  const handler = new DentalHandler()
-  
-  describe('canHandle', () => {
-    it('should handle dental queries', () => {
-      expect(handler.canHandle('Zahnreinigung')).toBe(true)
-      expect(handler.canHandle('Implantate')).toBe(true)
-    })
+describe('DocumentProcessor', () => {
+  it('should extract content correctly', async () => {
+    const processor = new DocumentProcessor();
+    const result = await processor.processDocument(testFile);
+    expect(result.content).toBeDefined();
+  });
 
-    it('should not handle non-dental queries', () => {
-      expect(handler.canHandle('Physiotherapie')).toBe(false)
-    })
-  })
+  it('should detect document type', async () => {
+    const processor = new DocumentProcessor();
+    const result = await processor.processDocument(testFile);
+    expect(result.metadata.type).toBeDefined();
+  });
+});
+```
 
-  describe('getResponse', () => {
-    it('should provide valid metadata', async () => {
-      const response = await handler.getResponse('Zahnreinigung', {})
-      expect(response.metadata.nextSteps).toBeDefined()
-      expect(response.metadata.requirements).toBeDefined()
-    })
+#### Handler Generator
+```typescript
+describe('HandlerGenerator', () => {
+  it('should generate handler config', async () => {
+    const generator = new HandlerGenerator();
+    const config = await generator.generateHandler(testDocument);
+    expect(config.type).toBeDefined();
+    expect(config.metadata).toBeDefined();
+  });
 
-    it('should handle context', async () => {
-      const context = {
-        currentProcess: 'dental-treatment',
-        processStep: 'cost-inquiry'
-      }
-      const response = await handler.getResponse('Kosten', context)
-      expect(response.metadata.costs).toBeDefined()
-    })
-  })
-})
-
-// Service Tests
-describe('ContentVectorizer', () => {
-  const vectorizer = new ContentVectorizer({
-    openaiApiKey: 'test-key',
-    pineconeApiKey: 'test-key',
-    pineconeEnvironment: 'test',
-    pineconeIndex: 'test-index'
-  })
-
-  describe('vectorize', () => {
-    it('should create valid vectors', async () => {
-      const result = await vectorizer.vectorize('Test content')
-      expect(result.length).toBe(1536)
-    })
-
-    it('should handle metadata', async () => {
-      const result = await vectorizer.vectorizeWithMetadata({
-        text: 'Test content',
-        metadata: {
-          title: 'Test',
-          url: 'https://test.com'
-        }
-      })
-      expect(result.metadata).toBeDefined()
-    })
-  })
-})
+  it('should extract patterns', async () => {
+    const generator = new HandlerGenerator();
+    const config = await generator.generateHandler(testDocument);
+    expect(config.config.patterns).toHaveLength(1);
+  });
+});
 ```
 
 ### 2.2 Integration Tests
 
+#### Upload Process
 ```typescript
-// API Tests
-describe('Chat API', () => {
-  it('should handle chat requests', async () => {
-    const response = await request(app)
-      .post('/api/chat')
-      .send({
-        message: 'Test message',
-        templateId: 'test-template',
-        sessionId: 'test-session'
-      })
-    
-    expect(response.status).toBe(200)
-    expect(response.body.answer).toBeDefined()
-  })
+describe('Upload Process', () => {
+  it('should process document end-to-end', async () => {
+    const result = await uploadAndProcess(testFile);
+    expect(result.status).toBe('completed');
+    expect(result.handler).toBeDefined();
+    expect(result.vectors).toBeDefined();
+  });
+});
+```
 
-  it('should maintain context', async () => {
-    const session = 'test-session'
-    
-    // Erste Nachricht
-    await request(app)
-      .post('/api/chat')
-      .send({
-        message: 'Was kostet eine Zahnreinigung?',
-        templateId: 'test-template',
-        sessionId: session
-      })
-    
-    // Folgenachricht
-    const response = await request(app)
-      .post('/api/chat')
-      .send({
-        message: 'Und wenn es länger dauert?',
-        templateId: 'test-template',
-        sessionId: session
-      })
-    
-    expect(response.body.answer).toContain('Kosten')
-  })
-})
-
-// Service Integration Tests
-describe('Smart Search Integration', () => {
-  it('should find relevant documents', async () => {
-    const search = new SmartSearch()
-    const results = await search.search('Zahnreinigung', 'test-template')
-    
-    expect(results.length).toBeGreaterThan(0)
-    expect(results[0].score).toBeGreaterThan(0.5)
-  })
-})
+#### Query Processing
+```typescript
+describe('Query Processing', () => {
+  it('should handle queries correctly', async () => {
+    const response = await processQuery(testQuery);
+    expect(response.text).toBeDefined();
+    expect(response.metadata).toBeDefined();
+  });
+});
 ```
 
 ### 2.3 End-to-End Tests
 
+#### Complete Flow
 ```typescript
-// Cypress Tests
-describe('Chat Interface', () => {
-  beforeEach(() => {
-    cy.visit('/')
-  })
+describe('Complete Flow', () => {
+  it('should handle document upload to query', async () => {
+    // Upload & Process
+    const uploadResult = await uploadAndProcess(testFile);
+    expect(uploadResult.status).toBe('completed');
 
-  it('should send and receive messages', () => {
-    cy.get('[data-testid="chat-input"]')
-      .type('Hallo{enter}')
-    
-    cy.get('[data-testid="chat-messages"]')
-      .should('contain', 'Hallo')
-      .should('contain', 'Wie kann ich Ihnen helfen?')
-  })
-
-  it('should handle document uploads', () => {
-    cy.get('[data-testid="upload-button"]').click()
-    cy.get('input[type="file"]').attachFile('test.pdf')
-    cy.get('[data-testid="upload-status"]')
-      .should('contain', 'Erfolgreich hochgeladen')
-  })
-})
+    // Query
+    const queryResult = await processQuery(testQuery);
+    expect(queryResult.text).toBeDefined();
+  });
+});
 ```
 
 ## 3. Test-Automatisierung
@@ -432,4 +364,125 @@ module.exports = {
    - [ ] Last-Tests durchgeführt
    - [ ] Skalierbarkeit getestet
    - [ ] Memory Leaks geprüft
-   - [ ] Response Times gemessen 
+   - [ ] Response Times gemessen
+
+## Test Utilities
+
+### Mock Data
+```typescript
+const testDocument = {
+  content: 'Test content',
+  metadata: {
+    type: 'test',
+    title: 'Test Document'
+  }
+};
+
+const testQuery = {
+  text: 'Test query',
+  context: {}
+};
+```
+
+### Helper Functions
+```typescript
+async function uploadAndProcess(file: File) {
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: createFormData(file)
+  });
+  return response.json();
+}
+
+async function processQuery(query: string) {
+  const response = await fetch('/api/query', {
+    method: 'POST',
+    body: JSON.stringify({ query })
+  });
+  return response.json();
+}
+```
+
+## Performance Tests
+
+### Load Testing
+```typescript
+describe('Load Testing', () => {
+  it('should handle multiple concurrent uploads', async () => {
+    const results = await Promise.all(
+      testFiles.map(file => uploadAndProcess(file))
+    );
+    results.forEach(result => {
+      expect(result.status).toBe('completed');
+    });
+  });
+
+  it('should handle multiple concurrent queries', async () => {
+    const results = await Promise.all(
+      testQueries.map(query => processQuery(query))
+    );
+    results.forEach(result => {
+      expect(result.text).toBeDefined();
+    });
+  });
+});
+```
+
+## Monitoring Tests
+
+### Performance Metrics
+```typescript
+describe('Performance Metrics', () => {
+  it('should track processing time', async () => {
+    const start = Date.now();
+    await uploadAndProcess(testFile);
+    const duration = Date.now() - start;
+    expect(duration).toBeLessThan(maxProcessingTime);
+  });
+
+  it('should track memory usage', async () => {
+    const memoryBefore = process.memoryUsage();
+    await uploadAndProcess(largeTestFile);
+    const memoryAfter = process.memoryUsage();
+    expect(memoryAfter.heapUsed - memoryBefore.heapUsed)
+      .toBeLessThan(maxMemoryIncrease);
+  });
+});
+```
+
+## Continuous Integration
+
+### GitHub Actions
+```yaml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+      - name: Run E2E tests
+        run: npm run test:e2e
+```
+
+## Best Practices
+
+1. **Isolierte Tests**
+   - Jeder Test sollte unabhängig sein
+   - Mocks für externe Dienste verwenden
+   - Testdaten zurücksetzen
+
+2. **Aussagekräftige Namen**
+   - Beschreibende Test-Namen
+   - Klare Erwartungen
+   - Dokumentierte Randfälle
+
+3. **Vollständige Abdeckung**
+   - Erfolgsszenarien
+   - Fehlerfälle
+   - Grenzfälle
+   - Edge Cases 

@@ -42,11 +42,8 @@ export class BotService {
 
     // Verarbeite Nachricht basierend auf Bot-Typ
     switch (botConfig.type) {
-      case 'aok-handler':
-        if (!botConfig.aokHandler) {
-          throw new Error('AOK handler configuration missing')
-        }
-        return this.processAOKMessage(message, templateId, history)
+      case 'template-handler':
+        return this.processTemplateMessage(message, templateId, history)
       
       case 'examples':
         return this.processExampleMessage(message, botConfig.examples || [])
@@ -68,7 +65,7 @@ export class BotService {
     }
   }
 
-  private async processAOKMessage(
+  private async processTemplateMessage(
     message: string,
     templateId: string,
     history: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -79,7 +76,7 @@ export class BotService {
 
     const response = await this.handlerManager.processRequest({
       query: message,
-      type: 'aok',
+      type: 'template',
       metadata: {
         history,
         templateId
