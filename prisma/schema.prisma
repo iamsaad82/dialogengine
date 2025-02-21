@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -42,6 +45,7 @@ model Template {
   chatLogs          ChatLog[]
   template_handlers template_handlers[]
   flowiseConfig     FlowiseConfig?      @relation(fields: [flowiseConfigId], references: [id])
+  contentTypes      ContentType[]
 
   @@index([bot_type])
   @@map("templates")
@@ -116,7 +120,7 @@ model ExtractionSchema {
 }
 
 model template_handlers {
-  id         String   @id
+  id         String   @id @default(cuid())
   templateId String
   type       String
   name       String
@@ -125,14 +129,15 @@ model template_handlers {
   config     Json     @default("{}")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  templates  Template @relation(fields: [templateId], references: [id])
+  templates  Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([type])
   @@index([templateId])
+  @@index([name])
 }
 
 model UploadJob {
-  id             String   @id
+  id             String   @id @default(cuid())
   templateId     String
   status         String
   totalFiles     Int
@@ -140,7 +145,28 @@ model UploadJob {
   metadata       Json
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  template       Template @relation(fields: [templateId], references: [id])
+  template       Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([templateId])
+  @@index([createdAt])
+}
+
+model ContentType {
+  id          String   @id @default(cuid())
+  type        String
+  name        String?
+  description String?
+  metadata    Json?    @default("{}")
+  patterns    Json?    @default("[]")
+  validators  Json?    @default("[]")
+  templateId  String
+  template    Template @relation(fields: [templateId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([templateId])
+  @@map("content_types")
 }
 
 enum UserRole {
