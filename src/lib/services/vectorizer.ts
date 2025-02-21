@@ -1,18 +1,18 @@
-import { Pinecone } from '@pinecone-database/pinecone'
+import { Pinecone, Index, IndexList, CreateIndexOptions } from '@pinecone-database/pinecone'
 import OpenAI from 'openai'
 import { v4 as uuidv4 } from 'uuid'
+import { RecordMetadata } from '@/lib/types/record'
+import { nanoid } from 'nanoid'
 
 // Definiere ContentType direkt hier
 export type ContentType = 
-  | 'info' 
-  | 'service' 
-  | 'medical'
-  | 'insurance'
-  | 'location' 
-  | 'contact' 
-  | 'faq' 
-  | 'download' 
-  | 'error';
+  | 'medical'    // Medizinische Leistungen
+  | 'insurance'  // Versicherungsleistungen
+  | 'service'    // Allgemeine Services
+  | 'legal'      // Rechtliche Themen
+  | 'financial'  // Finanzen
+  | 'education'  // Bildung
+  | 'support';   // Kundenservice
 
 interface VectorizerConfig {
   openaiApiKey: string;
@@ -24,11 +24,19 @@ interface VectorizerConfig {
 
 interface VectorizeInput {
   content: string;
-  metadata: {
-    filename: string;
-    path: string;
-    type: string;
-    confidence: number;
+  metadata: Record<string, any>;
+}
+
+interface VectorResult {
+  vectors: Array<{
+    id: string;
+    values: number[];
+    metadata: Record<string, any>;
+  }>;
+  metadata?: {
+    count: number;
+    timestamp: string;
+    templateId: string;
   };
 }
 
@@ -83,6 +91,7 @@ interface ProcessedChunk {
       priority: number
     }[]
     requirements?: string[]
+    coverage?: string[]
     nextSteps?: string[]
     relatedTopics?: string[]
     deadlines?: string[]
@@ -105,10 +114,18 @@ interface ProcessedChunk {
   embedding: number[]
 }
 
+interface PineconeIndexConfig extends CreateIndexOptions {
+  metadataConfig?: {
+    indexed: string[]
+  }
+}
+
 export class ContentVectorizer {
   private openai: OpenAI;
   private pinecone: Pinecone;
   private config: VectorizerConfig;
+  private indexName: string;
+  private index?: Index;
 
   constructor(config: VectorizerConfig) {
     this.config = config;
@@ -122,29 +139,121 @@ export class ContentVectorizer {
     this.pinecone = new Pinecone({
       apiKey: config.pineconeApiKey
     });
+
+    // Generiere template-spezifischen Index-Namen
+    this.indexName = `template-${config.templateId}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   }
 
-  public async vectorize(input: VectorizeInput) {
+  public async vectorize(input: VectorizeInput): Promise<VectorResult> {
     try {
+      // Stelle sicher, dass der Index existiert
+      await this.ensureIndexExists();
+      
+      console.log(`
+Starte Vektorisierung:
+- Template ID: ${this.config.templateId}
+- Index Name: ${this.indexName}
+- Environment: ${this.config.pineconeEnvironment}
+`);
+      
+      // Analysiere den Content zuerst
+      const analysis = await this.analyzeSection(input.content);
+      console.log('Content-Analyse abgeschlossen:', {
+        type: analysis.type,
+        confidence: analysis.confidence,
+        metadata: analysis.metadata
+      });
+
       // Generiere Embedding mit OpenAI
       const embeddingResponse = await this.openai.embeddings.create({
-        model: 'text-embedding-ada-002',
+        model: 'text-embedding-3-small',
         input: input.content
       });
 
       const embedding = embeddingResponse.data[0].embedding;
+      console.log('Embedding erstellt:', embedding.length, 'Dimensionen');
 
-      // Speichere in Pinecone
-      const index = this.pinecone.index(this.config.pineconeIndex);
+      // Erstelle eindeutige ID
+      const id = `vec_${this.config.templateId}_${Date.now()}`;
       
-      await index.upsert([{
-        id: `${this.config.templateId}-${Date.now()}`,
+      // Bereite Vector für Pinecone vor
+      const vector = {
+        id,
         values: embedding,
         metadata: {
+          ...input.metadata,
+          type: analysis.type,
+          confidence: analysis.confidence,
+          timestamp: new Date().toISOString(),
           templateId: this.config.templateId,
-          ...input.metadata
+          // Flache Struktur für bessere Suchbarkeit
+          images: JSON.stringify(analysis.metadata.media?.images || []),
+          videos: JSON.stringify(analysis.metadata.media?.videos || []),
+          files: JSON.stringify(analysis.metadata.media?.files || []),
+          links: JSON.stringify(analysis.metadata.media?.links || []),
+          forms: JSON.stringify(analysis.metadata.interactive?.forms || []),
+          buttons: JSON.stringify(analysis.metadata.interactive?.buttons || []),
+          calculators: JSON.stringify(analysis.metadata.interactive?.calculators || []),
+          requirements: JSON.stringify(analysis.metadata.requirements || []),
+          coverage: JSON.stringify(analysis.metadata.coverage || []),
+          nextSteps: JSON.stringify(analysis.metadata.nextSteps || []),
+          contactPoints: JSON.stringify(analysis.metadata.contactPoints || []),
+          relatedTopics: JSON.stringify(analysis.metadata.relatedTopics || []),
+          deadlines: JSON.stringify(analysis.metadata.deadlines || []),
+          domain: analysis.metadata.domain,
+          subDomain: analysis.metadata.subDomain,
+          provider: analysis.metadata.provider,
+          serviceType: analysis.metadata.serviceType
         }
-      }]);
+      };
+
+      // Hole Index-Instanz
+      const index = this.pinecone.index(this.indexName);
+      
+      // Versuche Upsert
+      console.log('Versuche Vector-Upsert mit Metadaten:', JSON.stringify(vector.metadata, null, 2));
+      await index.upsert([vector]);
+      
+      // Warte kurz vor der Verifizierung
+      console.log('Verifiziere Speicherung...');
+      let retries = 0;
+      const maxRetries = 5;  // Erhöhe die Anzahl der Versuche
+      
+      while (retries < maxRetries) {
+        try {
+          // Warte länger zwischen den Versuchen
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
+          
+          const verification = await index.fetch([id]);
+          
+          if (verification.records && verification.records[id]) {
+            console.log(`Vector erfolgreich gespeichert und verifiziert:
+- Status: Erfolgreich
+- Index: ${this.indexName}
+- Vector ID: ${id}
+- Metadaten: ${JSON.stringify(vector.metadata, null, 2)}
+`);
+            
+            return {
+              vectors: [vector],
+              metadata: {
+                count: 1,
+                timestamp: new Date().toISOString(),
+                templateId: this.config.templateId
+              }
+            };
+          }
+          
+          console.log(`Verifizierung fehlgeschlagen, Versuch ${retries + 1}/${maxRetries}`);
+          retries++;
+        } catch (error) {
+          console.error(`Fehler bei Verifizierungsversuch ${retries + 1}:`, error);
+          retries++;
+          continue;
+        }
+      }
+      
+      throw new Error(`Vektor konnte nach ${maxRetries} Versuchen nicht verifiziert werden. Bitte prüfen Sie die Pinecone-Konfiguration und Verbindung.`);
 
     } catch (error) {
       console.error('Fehler bei der Vektorisierung:', error);
@@ -276,33 +385,35 @@ export class ContentVectorizer {
     }
   }
 
-  private validateMetadata(metadata: RecordMetadata | undefined): DocumentMetadata {
+  private validateMetadata(metadata: Record<string, any> | undefined): DocumentMetadata {
     if (!metadata) {
-      throw new Error('Metadata ist erforderlich')
-    }
-
-    // Korrigiere die URL falls es ein lokaler Pfad ist
-    let url = String(metadata.url || '')
-    if (url.includes('/Users/') && url.endsWith('.md')) {
-      // Extrahiere den relevanten Teil des Pfads
-      const match = url.match(/www_aok_de(.+)\.md$/)
-      if (match) {
-        url = `https://www.aok.de${match[1].replace(/_/g, '/')}`
+      return {
+        id: uuidv4(),
+        type: 'document',
+        title: 'Untitled Document',
+        text: '',
+        content: '',
+        contentType: 'unknown',
+        url: '',
+        templateId: this.config.templateId,
+        language: 'de',
+        lastModified: new Date().toISOString()
       }
     }
 
-    const validatedMetadata: DocumentMetadata = {
-      url,
-      title: String(metadata.title || ''),
-      text: String(metadata.text || ''),
-      content: String(metadata.content || ''),
-      contentType: String(metadata.contentType || 'webpage'),
-      templateId: String(metadata.templateId || this.config.templateId),
-      language: String(metadata.language || 'de'),
-      lastModified: String(metadata.lastModified || new Date().toISOString())
+    return {
+      id: metadata.id || uuidv4(),
+      type: metadata.type || 'document',
+      title: metadata.title || 'Untitled Document',
+      text: metadata.text || '',
+      content: metadata.content || '',
+      contentType: metadata.contentType || 'unknown',
+      url: metadata.url || '',
+      templateId: metadata.templateId || this.config.templateId,
+      language: metadata.language || 'de',
+      lastModified: metadata.lastModified || new Date().toISOString(),
+      ...metadata
     }
-
-    return this.truncateMetadata(validatedMetadata)
   }
 
   private splitIntoSections(content: string): Array<{
@@ -424,14 +535,12 @@ export class ContentVectorizer {
     type: ContentType
     confidence: number
     metadata: {
-      description?: string
-      actions?: Array<{
-        type: 'link' | 'form' | 'download' | 'contact'
-        label: string
-        url: string
-        priority: number
-      }>
+      domain: string
+      subDomain: string
+      provider: string
+      serviceType: string
       requirements?: string[]
+      coverage?: string[]
       nextSteps?: string[]
       relatedTopics?: string[]
       deadlines?: string[]
@@ -440,36 +549,162 @@ export class ContentVectorizer {
         value: string
         description?: string
       }>
+      media?: {
+        images: Array<{
+          url: string
+          alt?: string
+          caption?: string
+        }>
+        videos: Array<{
+          url: string
+          type: string
+          title?: string
+        }>
+        files: Array<{
+          url: string
+          type: string
+          name: string
+          size?: string
+        }>
+        links: Array<{
+          url: string
+          title: string
+          type: 'internal' | 'external'
+          description?: string
+        }>
+      }
+      interactive?: {
+        forms?: Array<{
+          id: string
+          action: string
+          fields: Array<{
+            name: string
+            type: string
+            required: boolean
+          }>
+        }>
+        buttons?: Array<{
+          text: string
+          action: string
+          type: string
+        }>
+        calculators?: Array<{
+          type: string
+          inputs: string[]
+          outputs: string[]
+        }>
+      }
     }
   }> {
-    const prompt = `Analysiere den folgenden Content und extrahiere strukturierte Informationen.
+    const prompt = `Analysiere den folgenden Content und extrahiere alle relevanten Informationen.
     Berücksichtige dabei:
-    - Den Haupt-Content-Type (info, service, product, event, etc.)
-    - Mögliche Aktionen (Links, Formulare, Downloads)
-    - Anforderungen oder Voraussetzungen
-    - Nächste Schritte
-    - Verwandte Themen
-    - Fristen oder Termine
-    - Kontaktmöglichkeiten
+    - Um welche Art von Leistung oder Service handelt es sich?
+    - In welchen Geschäftsbereich fällt der Inhalt?
+    - Welche interaktiven Elemente sind vorhanden (Links, Formulare, Buttons)?
+    - Welche Medien sind eingebettet (Bilder, Videos, Downloads)?
+    - Welche wichtigen Informationen werden vermittelt?
 
     Content:
     ${content}
 
-    Antworte im JSON-Format mit allen gefundenen Informationen.`
+    Antworte im JSON-Format mit:
+    {
+      "type": "einer der folgenden Typen: medical, insurance, service, legal, financial, education, support",
+      "confidence": "Konfidenz zwischen 0 und 1",
+      "metadata": {
+        "domain": "Hauptgeschäftsbereich",
+        "subDomain": "Spezifischer Bereich",
+        "provider": "Anbieter der Leistung",
+        "serviceType": "Art der Leistung",
+        "requirements": ["voraussetzungen", "bedingungen"],
+        "coverage": ["leistungsumfang", "details"],
+        "nextSteps": ["nächste Schritte"],
+        "relatedTopics": ["verwandte Themen"],
+        "deadlines": ["relevante Fristen"],
+        "contactPoints": [
+          {
+            "type": "Kontaktart",
+            "value": "Kontaktdetails",
+            "description": "Beschreibung"
+          }
+        ],
+        "media": {
+          "images": [
+            {
+              "url": "Bild-URL",
+              "alt": "Alternativtext",
+              "caption": "Bildunterschrift"
+            }
+          ],
+          "videos": [
+            {
+              "url": "Video-URL",
+              "type": "Video-Typ (z.B. YouTube, Vimeo)",
+              "title": "Video-Titel"
+            }
+          ],
+          "files": [
+            {
+              "url": "Datei-URL",
+              "type": "Dateityp (z.B. PDF, DOC)",
+              "name": "Dateiname",
+              "size": "Dateigröße"
+            }
+          ],
+          "links": [
+            {
+              "url": "Link-URL",
+              "title": "Link-Titel",
+              "type": "internal oder external",
+              "description": "Link-Beschreibung"
+            }
+          ]
+        },
+        "interactive": {
+          "forms": [
+            {
+              "id": "Formular-ID",
+              "action": "Formular-Aktion",
+              "fields": [
+                {
+                  "name": "Feldname",
+                  "type": "Feldtyp",
+                  "required": true/false
+                }
+              ]
+            }
+          ],
+          "buttons": [
+            {
+              "text": "Button-Text",
+              "action": "Button-Aktion",
+              "type": "Button-Typ"
+            }
+          ],
+          "calculators": [
+            {
+              "type": "Rechner-Typ",
+              "inputs": ["Eingabefelder"],
+              "outputs": ["Ausgabefelder"]
+            }
+          ]
+        }
+      }
+    }`
 
     const completion = await this.openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.2,
       response_format: { type: "json_object" }
-    })
+    });
 
-    const response = completion.choices[0].message.content
+    const response = completion.choices[0].message.content;
     if (!response) {
-      throw new Error('Keine Antwort vom Modell erhalten')
+      throw new Error('Keine Antwort vom Modell erhalten');
     }
 
-    return JSON.parse(response)
+    return JSON.parse(response);
   }
 
   public async indexContent(
@@ -946,6 +1181,45 @@ export class ContentVectorizer {
     } catch (error) {
       console.error('Fehler bei der Markdown-Verarbeitung:', error)
       return []
+    }
+  }
+
+  private async ensureIndexExists(): Promise<void> {
+    try {
+      const indexList = await this.pinecone.listIndexes()
+      const indexNames = Array.isArray(indexList) 
+        ? indexList.map((idx: { name: string }) => idx.name)
+        : Object.values(indexList).map((idx: { name: string }) => idx.name)
+      
+      const indexExists = indexNames.includes(this.indexName)
+
+      if (!indexExists) {
+        console.log(`Erstelle neuen Index "${this.indexName}"...`)
+        
+        await this.pinecone.createIndex({
+          name: this.indexName,
+          dimension: 1536, // OpenAI embedding dimension
+          metric: 'cosine',
+          spec: {
+            serverless: {
+              cloud: 'aws',
+              region: 'us-west-2'
+            }
+          }
+        })
+
+        // Warte kurz, damit der Index initialisiert werden kann
+        await new Promise(resolve => setTimeout(resolve, 10000))
+      }
+
+      this.index = this.pinecone.Index(this.indexName)
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        console.log(`Index "${this.indexName}" existiert bereits durch parallele Erstellung`)
+        this.index = this.pinecone.Index(this.indexName)
+        return
+      }
+      throw error
     }
   }
 } 
