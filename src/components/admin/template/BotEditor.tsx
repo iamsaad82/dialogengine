@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { BotType, DialogEngineConfig, FlowiseBotConfig, ExamplesBotConfig } from "@/lib/types/template"
+import type { Template } from '@/lib/types/template'
+import { BotType, FlowiseBotConfig, ExamplesBotConfig, DialogEngineConfig } from '@/lib/types/bot'
 import { useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { Card } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
 import { FlowiseBot } from './bot/FlowiseBot'
 import { ExamplesBot } from './bot/ExamplesBot'
+import { Textarea } from "@/components/ui/textarea"
 
 export const BOT_TYPES = [
   { id: 'dialog-engine', label: 'Dialog Engine' },
@@ -68,42 +70,57 @@ interface BotEditorProps {
 }
 
 export function BotEditor({ type, config, templateId, onTypeChange, onConfigChange }: BotEditorProps) {
-  const defaultDialogEngineConfig: DialogEngineConfig = {
+  const defaultConfig: DialogEngineConfig = {
+    type: 'dialog-engine',
+    active: true,
     provider: 'openai',
     model: 'gpt-4',
     temperature: 0.7,
-    systemPrompt: "Du bist ein hilfreicher Assistent.",
-    
-    matchThreshold: 0.7,
-    contextWindow: 3,
-    maxTokens: 2000,
-    
+    systemPrompt: '',
+    matchThreshold: 0.8,
+    contextWindow: 1000,
+    maxTokens: 500,
     dynamicResponses: true,
     includeLinks: true,
     includeMetadata: true,
-    
     streaming: true,
-    fallbackMessage: "Entschuldigung, ich konnte keine passende Antwort finden. Wie kann ich Ihnen anders helfen?",
-    maxResponseTime: 30,
-    apiKeys: {
-      openai: '',
-      anthropic: '',
-      mistral: ''
-    }
+    fallbackMessage: 'Entschuldigung, ich konnte Ihre Anfrage nicht verarbeiten.',
+    maxResponseTime: 30000
   }
 
   const [botConfig, setBotConfig] = useState<DialogEngineConfig>(
-    type === 'dialog-engine' ? (config as DialogEngineConfig || defaultDialogEngineConfig) : defaultDialogEngineConfig
+    type === 'dialog-engine' ? (config as DialogEngineConfig || defaultConfig) : defaultConfig
   )
   const [activeTab, setActiveTab] = useState('basic')
 
-  const handleConfigChange = (field: keyof DialogEngineConfig, value: unknown) => {
-    const newConfig = {
-      ...botConfig,
-      [field]: value
+  const handleNumberChange = (key: keyof DialogEngineConfig) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(event.target.value)
+    if (!isNaN(value)) {
+      const updatedConfig = {
+        ...botConfig,
+        [key]: value
+      }
+      setBotConfig(updatedConfig)
+      onConfigChange(updatedConfig)
     }
-    setBotConfig(newConfig)
-    onConfigChange(newConfig)
+  }
+
+  const handleStringChange = (key: keyof DialogEngineConfig) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const updatedConfig = {
+      ...botConfig,
+      [key]: event.target.value
+    }
+    setBotConfig(updatedConfig)
+    onConfigChange(updatedConfig)
+  }
+
+  const handleBooleanChange = (key: keyof DialogEngineConfig, value: boolean) => {
+    const updatedConfig = {
+      ...botConfig,
+      [key]: value
+    }
+    setBotConfig(updatedConfig)
+    onConfigChange(updatedConfig)
   }
 
   const handleProviderChange = (value: AIProvider) => {
@@ -133,20 +150,23 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
   }
 
   const handleSliderChange = (field: keyof DialogEngineConfig) => (value: number[]) => {
-    handleConfigChange(field, value[0])
-  }
-
-  const handleNumberInputChange = (field: keyof DialogEngineConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value === '' ? 0 : parseFloat(e.target.value)
-    handleConfigChange(field, value)
-  }
-
-  const handleTextInputChange = (field: keyof DialogEngineConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleConfigChange(field, e.target.value)
+    handleNumberChange(field)({ target: { value: value[0].toString() } } as React.ChangeEvent<HTMLInputElement>)
   }
 
   const handleSwitchChange = (field: keyof DialogEngineConfig) => (checked: boolean) => {
-    handleConfigChange(field, checked)
+    handleBooleanChange(field, checked)
+  }
+
+  const handleApiKeyChange = (provider: keyof Required<DialogEngineConfig>['apiKeys'], value: string) => {
+    const updatedConfig = {
+      ...botConfig,
+      apiKeys: {
+        ...botConfig.apiKeys,
+        [provider]: value
+      }
+    }
+    setBotConfig(updatedConfig)
+    onConfigChange(updatedConfig)
   }
 
   return (
@@ -239,8 +259,9 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                 <div>
                   <Label>System Prompt</Label>
                   <Input
+                    type="text"
                     value={botConfig.systemPrompt}
-                    onChange={handleTextInputChange('systemPrompt')}
+                    onChange={handleStringChange('systemPrompt')}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Definiert die Grundpersönlichkeit des Bots
@@ -273,9 +294,11 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                   <Label>Kontextfenster</Label>
                   <Input
                     type="number"
-                    min={1}
                     value={botConfig.contextWindow}
-                    onChange={handleNumberInputChange('contextWindow')}
+                    onChange={handleNumberChange('contextWindow')}
+                    min={100}
+                    max={10000}
+                    step={100}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Anzahl der Nachrichten im Kontext
@@ -288,7 +311,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                     type="number"
                     min={1}
                     value={botConfig.maxTokens}
-                    onChange={handleNumberInputChange('maxTokens')}
+                    onChange={handleNumberChange('maxTokens')}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Maximale Länge der Antwort
@@ -359,7 +382,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                   <Label>Ausweichnachricht</Label>
                   <Input
                     value={botConfig.fallbackMessage}
-                    onChange={handleTextInputChange('fallbackMessage')}
+                    onChange={handleStringChange('fallbackMessage')}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Nachricht, wenn keine Antwort gefunden wurde
@@ -372,7 +395,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                     type="number"
                     min={1}
                     value={botConfig.maxResponseTime}
-                    onChange={handleNumberInputChange('maxResponseTime')}
+                    onChange={handleNumberChange('maxResponseTime')}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Timeout für Antworten
@@ -388,10 +411,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                   <Input
                     type="password"
                     value={botConfig.apiKeys?.openai || ''}
-                    onChange={(e) => handleConfigChange('apiKeys', {
-                      ...botConfig.apiKeys,
-                      openai: e.target.value
-                    })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleApiKeyChange('openai', e.target.value)}
                     placeholder="Optional - Standard aus .env wird verwendet"
                   />
                 </div>
@@ -401,10 +421,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                   <Input
                     type="password"
                     value={botConfig.apiKeys?.anthropic || ''}
-                    onChange={(e) => handleConfigChange('apiKeys', {
-                      ...botConfig.apiKeys,
-                      anthropic: e.target.value
-                    })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleApiKeyChange('anthropic', e.target.value)}
                     placeholder="Optional - Standard aus .env wird verwendet"
                   />
                 </div>
@@ -414,10 +431,7 @@ export function BotEditor({ type, config, templateId, onTypeChange, onConfigChan
                   <Input
                     type="password"
                     value={botConfig.apiKeys?.mistral || ''}
-                    onChange={(e) => handleConfigChange('apiKeys', {
-                      ...botConfig.apiKeys,
-                      mistral: e.target.value
-                    })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleApiKeyChange('mistral', e.target.value)}
                     placeholder="Optional - Standard aus .env wird verwendet"
                   />
                 </div>

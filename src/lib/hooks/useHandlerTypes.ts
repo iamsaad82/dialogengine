@@ -1,18 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { HandlerType } from '@/lib/types/handler'
 
-interface HandlerType {
-  id: string
-  label: string
-  description?: string
-  metadata?: {
-    icon?: string
-    category?: string
-    capabilities?: string[]
-  }
+export interface HandlerTypeResponse {
+  types: HandlerType[]
 }
 
 export function useHandlerTypes() {
-  const { data: types, isLoading, error } = useQuery<HandlerType[]>({
+  return useQuery<HandlerTypeResponse>({
     queryKey: ['handlerTypes'],
     queryFn: async () => {
       const response = await fetch('/api/handlers/types')
@@ -20,12 +14,8 @@ export function useHandlerTypes() {
         throw new Error('Fehler beim Laden der Handler-Typen')
       }
       return response.json()
-    }
+    },
+    staleTime: 1000 * 60 * 5, // 5 Minuten Cache
+    gcTime: 1000 * 60 * 30 // 30 Minuten Cache
   })
-
-  return {
-    types,
-    isLoading,
-    error
-  }
 } 

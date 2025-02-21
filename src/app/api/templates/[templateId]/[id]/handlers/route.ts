@@ -1,70 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { HandlerConfig, BotConfig } from '@/lib/types/template'
-import { ContentTypeEnum } from '@/lib/types/contentTypes'
+import { HandlerConfig } from '@/lib/types/template'
+import { nanoid } from 'nanoid'
+
+interface HandlerConfigData {
+  capabilities?: string[]
+  patterns?: Array<{
+    name: string
+    pattern: string
+    required: boolean
+    examples: string[]
+    extractMetadata?: string[]
+  }>
+  metadata?: Record<string, any>
+  settings?: {
+    matchThreshold: number
+    contextWindow: number
+    maxTokens: number
+    dynamicResponses: boolean
+    includeLinks?: boolean
+    includeContact?: boolean
+    includeSteps?: boolean
+    includePrice?: boolean
+    includeAvailability?: boolean
+    useExactMatches?: boolean
+  }
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { templateId: string } }
 ) {
   try {
-    const template = await prisma.template.findUnique({
-      where: { id: params.id },
-      select: { jsonBot: true }
+    console.log('🔍 Lade Handler für Template:', params.templateId);
+
+    // Hole Handler aus template_handlers
+    const handlers = await prisma.template_handlers.findMany({
+      where: { templateId: params.templateId }
     })
 
-    if (!template) {
-      return NextResponse.json(
-        { error: 'Template nicht gefunden' },
-        { status: 404 }
-      )
-    }
+    console.log('📊 Gefundene Handler:', handlers.length);
+    console.log('📝 Handler-Details:', handlers);
 
-    const botConfig: BotConfig = template.jsonBot 
-      ? JSON.parse(template.jsonBot.toString()) 
-      : { 
-          type: 'aok-handler',
-          aokHandler: {
-            pineconeApiKey: process.env.PINECONE_API_KEY || '',
-            pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || '',
-            pineconeIndex: process.env.PINECONE_INDEX || '',
-            openaiApiKey: process.env.OPENAI_API_KEY || ''
-          },
-          handlers: {}
-        }
+    // Konvertiere zu HandlerConfig-Format
+    const handlerConfigs = handlers.map(h => {
+      console.log('🔄 Verarbeite Handler:', h.id);
+      
+      let config: HandlerConfigData = {};
+      let metadata: Record<string, any> = {};
+      
+      try {
+        // Prüfe ob die Daten bereits ein Objekt sind
+        config = typeof h.config === 'string' ? JSON.parse(h.config) : h.config;
+        metadata = typeof h.metadata === 'string' ? JSON.parse(h.metadata) : h.metadata;
+      } catch (parseError) {
+        console.error('❌ Fehler beim Parsen der Handler-Daten:', {
+          handlerId: h.id,
+          error: parseError,
+          config: h.config,
+          metadata: h.metadata
+        });
+      }
 
-    // Hole Handler für das Template
-    const handlers = botConfig.handlers?.[params.id] || []
+      const defaultSettings = {
+        matchThreshold: 0.8,
+        contextWindow: 1000,
+        maxTokens: 2000,
+        dynamicResponses: true
+      };
 
-    // Wenn keine Handler existieren und es ein AOK-Template ist,
-    // erstelle einen Standard-Handler
-    if (handlers.length === 0 && botConfig.type === 'aok-handler') {
-      handlers.push({
-        type: 'info',
-        active: true,
-        metadata: {
-          keyTopics: [],
-          entities: [],
-          facts: []
+      return {
+        id: h.id,
+        type: h.type,
+        name: h.name,
+        active: h.active,
+        capabilities: config.capabilities || [],
+        config: {
+          patterns: config.patterns || [],
+          metadata: config.metadata || {},
+          settings: config.settings || defaultSettings
         },
-        responses: [],
-        settings: {
-          matchThreshold: 0.7,
-          contextWindow: 3,
-          maxTokens: 150,
-          dynamicResponses: true,
-          includeLinks: true,
-          pineconeConfig: {
-            environment: process.env.PINECONE_ENVIRONMENT || '',
-            index: process.env.PINECONE_INDEX || ''
-          }
-        }
-      })
-    }
+        metadata
+      };
+    });
 
-    return NextResponse.json({ handlers })
+    console.log('✅ Konvertierte Handler:', handlerConfigs);
+
+    return NextResponse.json(handlerConfigs)
   } catch (error) {
-    console.error('Fehler beim Laden der Handler:', error)
+    console.error('❌ Fehler beim Laden der Handler:', error)
     return NextResponse.json(
       { error: 'Interner Server-Fehler' },
       { status: 500 }
@@ -79,59 +103,29 @@ export async function PUT(
   try {
     const { handler } = await request.json()
 
-    const template = await prisma.template.findUnique({
-      where: { id: params.id },
-      select: { jsonBot: true }
-    })
-
-    if (!template) {
-      return NextResponse.json(
-        { error: 'Template nicht gefunden' },
-        { status: 404 }
-      )
-    }
-
-    const botConfig: BotConfig = template.jsonBot 
-      ? JSON.parse(template.jsonBot.toString())
-      : { 
-          type: 'aok-handler',
-          aokHandler: {
-            pineconeApiKey: process.env.PINECONE_API_KEY || '',
-            pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || '',
-            pineconeIndex: process.env.PINECONE_INDEX || '',
-            openaiApiKey: process.env.OPENAI_API_KEY || ''
-          },
-          handlers: {}
-        }
-
-    // Initialisiere handlers-Array für das Template, falls es noch nicht existiert
-    if (!botConfig.handlers) {
-      botConfig.handlers = {}
-    }
-    if (!botConfig.handlers[params.id]) {
-      botConfig.handlers[params.id] = []
-    }
-
-    // Aktualisiere oder füge Handler hinzu
-    const handlerIndex = botConfig.handlers[params.id].findIndex(
-      h => h.type === handler.type
-    )
-
-    if (handlerIndex >= 0) {
-      botConfig.handlers[params.id][handlerIndex] = handler
-    } else {
-      botConfig.handlers[params.id].push(handler)
-    }
-
-    // Speichere aktualisierte Konfiguration
-    await prisma.template.update({
-      where: { id: params.id },
-      data: {
-        jsonBot: JSON.stringify(botConfig)
+    // Aktualisiere oder erstelle Handler in template_handlers
+    const updatedHandler = await prisma.template_handlers.upsert({
+      where: {
+        id: handler.id || nanoid()
+      },
+      update: {
+        name: handler.name,
+        active: handler.active,
+        config: JSON.stringify(handler.config),
+        metadata: JSON.stringify(handler.metadata)
+      },
+      create: {
+        id: handler.id || nanoid(),
+        templateId: params.id,
+        type: handler.type,
+        name: handler.name,
+        active: handler.active,
+        config: JSON.stringify(handler.config),
+        metadata: JSON.stringify(handler.metadata)
       }
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, handler: updatedHandler })
   } catch (error) {
     console.error('Fehler beim Speichern des Handlers:', error)
     return NextResponse.json(
@@ -156,48 +150,11 @@ export async function DELETE(
       )
     }
 
-    const template = await prisma.template.findUnique({
-      where: { id: params.id },
-      select: { jsonBot: true }
-    })
-
-    if (!template) {
-      return NextResponse.json(
-        { error: 'Template nicht gefunden' },
-        { status: 404 }
-      )
-    }
-
-    const botConfig: BotConfig = template.jsonBot 
-      ? JSON.parse(template.jsonBot.toString())
-      : { 
-          type: 'aok-handler',
-          aokHandler: {
-            pineconeApiKey: process.env.PINECONE_API_KEY || '',
-            pineconeEnvironment: process.env.PINECONE_ENVIRONMENT || '',
-            pineconeIndex: process.env.PINECONE_INDEX || '',
-            openaiApiKey: process.env.OPENAI_API_KEY || ''
-          },
-          handlers: {}
-        }
-
-    // Stelle sicher, dass handlers existiert
-    if (!botConfig.handlers) {
-      botConfig.handlers = {}
-    }
-
-    // Filtere den zu löschenden Handler heraus
-    if (botConfig.handlers[params.id]) {
-      botConfig.handlers[params.id] = botConfig.handlers[params.id].filter(
-        h => h.type !== handlerType
-      )
-    }
-
-    // Speichere aktualisierte Konfiguration
-    await prisma.template.update({
-      where: { id: params.id },
-      data: {
-        jsonBot: JSON.stringify(botConfig)
+    // Lösche Handler aus template_handlers
+    await prisma.template_handlers.deleteMany({
+      where: {
+        templateId: params.id,
+        type: handlerType
       }
     })
 

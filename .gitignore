@@ -39,4 +39,9 @@ next-env.d.ts
 
 # development env files
 .env.development
+.env.*.local
+
+# Environment variables
+.env
+.env.local
 .env.*.local 

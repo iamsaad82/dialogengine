@@ -2,6 +2,10 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Providers from './providers'
 import { Toaster } from 'sonner'
+import { Inter } from 'next/font/google'
+import { ReactQueryProvider } from './providers/ReactQueryProvider'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Dialog Engine',
@@ -21,9 +25,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body suppressHydrationWarning={true}>
-        <Providers>{children}</Providers>
-        <Toaster />
+      <body suppressHydrationWarning={true} className={inter.className}>
+        <ReactQueryProvider>
+          <Providers>{children}</Providers>
+          <Toaster />
+        </ReactQueryProvider>
       </body>
     </html>
   )

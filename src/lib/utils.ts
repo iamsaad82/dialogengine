@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { nanoid } from 'nanoid'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -35,4 +36,11 @@ export function chunk<T>(input: string | T[], size: number): T[] {
     { length: Math.ceil(input.length / size) },
     (_, i) => input.slice(i * size, (i + 1) * size)
   ) as T[]
+}
+
+/**
+ * Generiert eine eindeutige ID
+ */
+export function generateId(): string {
+  return nanoid()
 }

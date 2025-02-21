@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { SchemaEditor } from '@/components/admin/template/schema/SchemaEditor'
-import type { ExtractionSchema, ExtractionSchemaFields } from '@/lib/types/schema'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
-import { PageHeader } from '@/components/admin/PageHeader'
+import { PageHeader } from '@/components/ui/page-header'
+import type { ExtractionSchema } from '@/lib/types/schema'
 
 interface SchemaPageProps {
   params: {
@@ -13,17 +13,8 @@ interface SchemaPageProps {
   }
 }
 
-const defaultSchema: ExtractionSchemaFields = {
-  name: '',
-  patterns: [],
-  metadata: [],
-  version: 1,
-  settings: {},
-  responseTypes: []
-}
-
 export default function SchemaPage({ params }: SchemaPageProps) {
-  const [schema, setSchema] = useState<ExtractionSchemaFields>(defaultSchema)
+  const [schema, setSchema] = useState<ExtractionSchema | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
@@ -37,40 +28,45 @@ export default function SchemaPage({ params }: SchemaPageProps) {
       const response = await fetch(`/api/templates/${params.id}/schema`)
       
       if (!response.ok) {
-        if (response.status === 404) {
-          // Wenn kein Schema gefunden wurde, verwenden wir das Standard-Schema
-          setSchema(defaultSchema)
-          return
-        }
         throw new Error('Fehler beim Laden des Schemas')
       }
       
       const data = await response.json()
-      setSchema(data.fields || defaultSchema)
+      setSchema(data || createDefaultSchema())
     } catch (error) {
       console.error('Fehler beim Laden des Schemas:', error)
       toast({
         title: 'Fehler',
         description: 'Das Schema konnte nicht geladen werden.'
       })
-      setSchema(defaultSchema)
+      setSchema(createDefaultSchema())
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSchemaChange = async (updatedFields: ExtractionSchemaFields) => {
-    try {
-      const updatedSchema = {
-        templateId: params.id,
-        name: updatedFields.name || 'Extraktionsschema',
-        description: 'Automatisch generiertes Schema',
-        fields: updatedFields,
-        version: updatedFields.version
-      }
+  const createDefaultSchema = (): ExtractionSchema => ({
+    id: '',
+    templateId: params.id,
+    name: 'Neues Schema',
+    description: '',
+    version: 1,
+    fields: {
+      patterns: [],
+      metadata: [],
+      responseTypes: [],
+      version: 1,
+      settings: {}
+    },
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date()
+  })
 
+  const handleUpdate = async (updatedSchema: ExtractionSchema) => {
+    try {
       const response = await fetch(`/api/templates/${params.id}/schema`, {
-        method: 'POST',
+        method: updatedSchema.id ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -81,7 +77,8 @@ export default function SchemaPage({ params }: SchemaPageProps) {
         throw new Error('Fehler beim Speichern des Schemas')
       }
       
-      setSchema(updatedFields)
+      const savedSchema = await response.json()
+      setSchema(savedSchema)
       toast({
         title: 'Erfolg',
         description: 'Das Schema wurde gespeichert.'
@@ -103,19 +100,27 @@ export default function SchemaPage({ params }: SchemaPageProps) {
     )
   }
 
+  if (!schema) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Schema nicht gefunden
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Schema"
-        description="Definieren Sie das Extraktionsschema für Ihr Template."
+        title="Extraktionsschema"
+        description="Definieren Sie hier, wie Informationen aus Dokumenten extrahiert werden sollen."
       />
       
       <div className="container mx-auto py-6">
         <div className="bg-white rounded-lg border p-6">
-          <SchemaEditor
+          <SchemaEditor 
             templateId={params.id}
             schema={schema}
-            onChange={handleSchemaChange}
+            onUpdate={handleUpdate}
           />
         </div>
       </div>

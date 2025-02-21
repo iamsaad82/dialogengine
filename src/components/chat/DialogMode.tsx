@@ -12,11 +12,15 @@ import { MessageBubble } from './MessageBubble'
 import { handleExamplesMode } from './handlers/ExamplesHandler'
 import { handleSmartSearchMode } from './handlers/SmartSearchHandler'
 import { handleFlowiseMode } from './handlers/FlowiseHandler'
-import { handleAOKMode } from './handlers/AOKHandler'
+import { handleTemplateMode } from './handlers/TemplateHandler'
 import TypingIndicator from '../TypingIndicator'
 
 interface DialogModeProps {
-  template: Template
+  template: Template & {
+    jsonContent: ParsedContent | string
+    jsonBranding: ParsedBranding | string
+    jsonBot: ParsedBot | string
+  }
   isDialogMode?: boolean
   onModeChange?: (mode: boolean) => void
 }
@@ -109,15 +113,15 @@ const DialogMode = React.forwardRef<HTMLDivElement, DialogModeProps>(
           response = await handleSmartSearchMode(userMessage, messages, template, logChatInteraction)
         } else if (bot?.type === 'flowise') {
           response = await handleFlowiseMode(userMessage, messages, template, bot, branding, logChatInteraction)
-        } else if (bot?.type === 'aok-handler') {
-          response = await handleAOKMode(userMessage, messages, template, bot, branding, logChatInteraction)
+        } else if (bot?.type === 'template-handler') {
+          response = await handleTemplateMode(userMessage, messages, template, bot, branding, logChatInteraction)
         } else {
           response = {
             role: 'assistant',
             content: JSON.stringify({
               type: 'error',
               title: 'Nicht unterstützter Bot-Typ',
-              text: 'Der Bot-Typ wird nicht unterstützt. Bitte wählen Sie entweder "examples", "smart-search", "flowise" oder "aok-handler" als Bot-Typ.',
+              text: 'Der Bot-Typ wird nicht unterstützt. Bitte wählen Sie entweder "examples", "smart-search", "flowise" oder "template-handler" als Bot-Typ.',
               metadata: {
                 color: branding?.primaryColor || 'var(--primary)'
               }

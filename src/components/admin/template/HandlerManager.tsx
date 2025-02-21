@@ -29,12 +29,23 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
   const loadHandlers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/handlers')
-      if (!response.ok) throw new Error('Fehler beim Laden')
+      console.log('🔍 Lade Handler für Template:', templateId)
+      
+      const response = await fetch(`/api/templates/${templateId}/handlers`)
+      if (!response.ok) {
+        throw new Error(`Fehler beim Laden: ${response.status} ${response.statusText}`)
+      }
+      
       const data = await response.json()
-      setHandlers(data)
+      console.log('📊 Geladene Handler-Daten:', data)
+      
+      // Stelle sicher, dass wir ein Array haben
+      const handlers = Array.isArray(data) ? data : []
+      console.log('✅ Verarbeitete Handler:', handlers)
+      
+      setHandlers(handlers)
     } catch (error) {
-      console.error('Fehler beim Laden der Handler:', error)
+      console.error('❌ Fehler beim Laden der Handler:', error)
       toast({
         title: 'Fehler',
         description: 'Die Handler konnten nicht geladen werden.'
@@ -44,30 +55,94 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
     }
   }
 
-  const handleGenerated = (handler: HandlerConfig) => {
-    setHandlers(prev => [...prev, handler])
-    toast({
-      title: 'Handler erstellt',
-      description: 'Der Handler wurde erfolgreich generiert.'
-    })
+  const handleGenerated = async (handler: HandlerConfig) => {
+    try {
+      console.log('📝 Speichere generierten Handler:', handler)
+      
+      const response = await fetch(`/api/templates/${templateId}/handlers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(handler),
+      })
+      
+      if (!response.ok) throw new Error('Fehler beim Speichern')
+      
+      const savedHandler = await response.json()
+      console.log('✅ Handler gespeichert:', savedHandler)
+      
+      setHandlers(prev => [...prev, savedHandler])
+      toast({
+        title: 'Handler erstellt',
+        description: 'Der Handler wurde erfolgreich generiert und gespeichert.'
+      })
+    } catch (error) {
+      console.error('❌ Fehler beim Speichern des Handlers:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Der Handler konnte nicht gespeichert werden.'
+      })
+    }
   }
 
-  const handleUpdated = (handler: HandlerConfig) => {
-    setHandlers(prev => prev.map(h => h.id === handler.id ? handler : h))
-    setSelectedHandler(null)
-    setActiveTab('list')
-    toast({
-      title: 'Handler aktualisiert',
-      description: 'Die Änderungen wurden gespeichert.'
-    })
+  const handleUpdated = async (handler: HandlerConfig) => {
+    try {
+      console.log('📝 Aktualisiere Handler:', handler)
+      
+      const response = await fetch(`/api/templates/${templateId}/handlers/${handler.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(handler),
+      })
+      
+      if (!response.ok) throw new Error('Fehler beim Aktualisieren')
+      
+      const updatedHandler = await response.json()
+      console.log('✅ Handler aktualisiert:', updatedHandler)
+      
+      setHandlers(prev => prev.map(h => h.id === updatedHandler.id ? updatedHandler : h))
+      setSelectedHandler(null)
+      setActiveTab('list')
+      toast({
+        title: 'Handler aktualisiert',
+        description: 'Die Änderungen wurden erfolgreich gespeichert.'
+      })
+    } catch (error) {
+      console.error('❌ Fehler beim Aktualisieren des Handlers:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Die Änderungen konnten nicht gespeichert werden.'
+      })
+    }
   }
 
-  const handleDeleted = (handler: HandlerConfig) => {
-    setHandlers(prev => prev.filter(h => h.id !== handler.id))
-    toast({
-      title: 'Handler gelöscht',
-      description: 'Der Handler wurde erfolgreich gelöscht.'
-    })
+  const handleDeleted = async (handler: HandlerConfig) => {
+    try {
+      console.log('🗑️ Lösche Handler:', handler)
+      
+      const response = await fetch(`/api/templates/${templateId}/handlers?id=${handler.id}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) throw new Error('Fehler beim Löschen')
+      
+      console.log('✅ Handler gelöscht')
+      
+      setHandlers(prev => prev.filter(h => h.id !== handler.id))
+      toast({
+        title: 'Handler gelöscht',
+        description: 'Der Handler wurde erfolgreich gelöscht.'
+      })
+    } catch (error) {
+      console.error('❌ Fehler beim Löschen des Handlers:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Der Handler konnte nicht gelöscht werden.'
+      })
+    }
   }
 
   if (loading) {
@@ -90,21 +165,15 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="list">
-            Handler
-          </TabsTrigger>
-          <TabsTrigger value="generate">
-            Generator
-          </TabsTrigger>
+          <TabsTrigger value="list">Handler</TabsTrigger>
+          <TabsTrigger value="generate">Generator</TabsTrigger>
           {selectedHandler && (
-            <TabsTrigger value="edit">
-              Bearbeiten
-            </TabsTrigger>
+            <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
           )}
         </TabsList>
 
         <TabsContent value="list" className="mt-4">
-          <Card className="p-4">
+          <Card className="p-6">
             <HandlerList
               handlers={handlers}
               onEdit={(handler) => {
@@ -117,7 +186,7 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
         </TabsContent>
 
         <TabsContent value="generate" className="mt-4">
-          <Card className="p-4">
+          <Card className="p-6">
             <GenerateHandler
               templateId={templateId}
               onGenerated={handleGenerated}
@@ -127,7 +196,7 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
 
         {selectedHandler && (
           <TabsContent value="edit" className="mt-4">
-            <Card className="p-4">
+            <Card className="p-6">
               <HandlerEditor
                 handler={selectedHandler}
                 onSave={handleUpdated}

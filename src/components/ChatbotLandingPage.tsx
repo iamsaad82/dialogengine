@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Template, IconType, ParsedContent, ParsedBranding } from '@/lib/types/template';
+import { Template, IconType, ParsedContent, ParsedBranding, ParsedBot } from '@/lib/types/template';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from '@/components/ui/switch';
 import { Features } from '@/components/Features';
@@ -17,6 +17,7 @@ interface ChatbotLandingPageProps {
   template: Template & {
     jsonContent: ParsedContent | string
     jsonBranding: ParsedBranding | string
+    jsonBot: string | ParsedBot
   }
 }
 
@@ -41,14 +42,25 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
       console.log('Parsed branding:', parsedBranding);
       
       // Set CSS variables for the template colors
-      if (parsedBranding?.primaryColor) {
-        document.documentElement.style.setProperty('--primary-color', parsedBranding.primaryColor);
-        document.documentElement.style.setProperty('--background', `${parsedBranding.primaryColor}05`);
+      if (parsedBranding?.colors?.primary) {
+        document.documentElement.style.setProperty('--primary-color', parsedBranding.colors.primary);
+        document.documentElement.style.setProperty('--background', `${parsedBranding.colors.primary}05`);
       }
       
       // Set the content and branding
       setContent(parsedContent);
       setBranding(parsedBranding);
+
+      const templateWithJson = {
+        ...template,
+        jsonContent: parsedContent,
+        jsonBranding: parsedBranding,
+        jsonBot: typeof template.jsonBot === 'string' ? template.jsonBot : JSON.stringify(template.jsonBot)
+      } as Template & {
+        jsonContent: ParsedContent
+        jsonBranding: ParsedBranding
+        jsonBot: string | ParsedBot
+      }
     } catch (error) {
       console.error('Error parsing template data:', error);
       console.error('Template content that caused error:', template.jsonContent);
@@ -105,9 +117,9 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                     className="text-center mb-12"
                   >
                     <h1 className="text-5xl sm:text-6xl font-bold mb-4">
-                      <span style={{ color: branding.primaryColor }}>{content.hero.title}</span>
+                      <span style={{ color: branding.colors.primary }}>{content.hero.title}</span>
                       {content.hero.subtitle && (
-                        <span className="block text-4xl sm:text-5xl mt-2" style={{ color: branding.primaryColor }}>
+                        <span className="block text-4xl sm:text-5xl mt-2" style={{ color: branding.colors.primary }}>
                           {content.hero.subtitle}
                         </span>
                       )}
@@ -136,15 +148,15 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                         !isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
                       }`} 
                       style={{ 
-                        backgroundColor: !isDialogMode ? `${branding.primaryColor}15` : 'transparent',
-                        borderColor: !isDialogMode ? branding.primaryColor : 'transparent'
+                        backgroundColor: !isDialogMode ? `${branding.colors.primary}15` : 'transparent',
+                        borderColor: !isDialogMode ? branding.colors.primary : 'transparent'
                       }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding.primaryColor }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding.colors.primary }}>
                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                           <line x1="3" y1="9" x2="21" y2="9"/>
                           <line x1="9" y1="21" x2="9" y2="9"/>
                         </svg>
-                        <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: !isDialogMode ? branding.primaryColor : '#666666' }}>
+                        <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: !isDialogMode ? branding.colors.primary : '#666666' }}>
                           Klassisch
                         </span>
                       </div>
@@ -154,7 +166,7 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                         <div 
                           className="absolute w-5 h-5 rounded-full transition-all duration-300 shadow-md"
                           style={{ 
-                            backgroundColor: branding.primaryColor,
+                            backgroundColor: branding.colors.primary,
                             left: isDialogMode ? '26px' : '2px',
                             top: '2px'
                           }}
@@ -166,13 +178,13 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                         isDialogMode ? 'bg-opacity-10 border' : 'opacity-75'
                       }`} 
                       style={{ 
-                        backgroundColor: isDialogMode ? `${branding.primaryColor}15` : 'transparent',
-                        borderColor: isDialogMode ? branding.primaryColor : 'transparent'
+                        backgroundColor: isDialogMode ? `${branding.colors.primary}15` : 'transparent',
+                        borderColor: isDialogMode ? branding.colors.primary : 'transparent'
                       }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding.primaryColor }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branding.colors.primary }}>
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: isDialogMode ? branding.primaryColor : '#666666' }}>
+                        <span className="font-medium text-sm sm:text-base whitespace-nowrap" style={{ color: isDialogMode ? branding.colors.primary : '#666666' }}>
                           Dialog
                         </span>
                       </div>
@@ -207,7 +219,7 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                         }
                       }}
                       onDialogModeClick={() => setIsDialogMode(true)}
-                      primaryColor={branding.primaryColor}
+                      primaryColor={branding.colors.primary}
                     />
                   )}
                 </motion.div>
@@ -238,7 +250,7 @@ export function ChatbotLandingPage({ template }: ChatbotLandingPageProps) {
                       <a
                         href={`mailto:${content.contact.email}`}
                         className="inline-flex items-center px-6 py-3 rounded-lg text-white transition-colors"
-                        style={{ backgroundColor: branding.primaryColor }}
+                        style={{ backgroundColor: branding.colors.primary }}
                       >
                         {content.contact.buttonText}
                         <ArrowRight className="w-4 h-4 ml-2" />

@@ -1,4 +1,7 @@
-import { DocumentPattern, MetadataDefinition, ContentType, ResponseType } from './template'
+import { DocumentPattern, MetadataDefinition } from './common'
+import { ContentType, ResponseType } from './contentTypes'
+
+export type { DocumentPattern, MetadataDefinition, ContentType, ResponseType }
 
 export interface PropertyDefinition {
   type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object'

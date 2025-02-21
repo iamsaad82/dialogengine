@@ -116,6 +116,14 @@ export function BaseUploader({
           return false
         }
 
+        // Prüfe XML-Dateien
+        if (extension === '.xml') {
+          if (allowedTypes.includes('application/xml') || allowedTypes.includes('text/xml')) {
+            console.log('Debug - XML-Datei ist erlaubt')
+            return false
+          }
+        }
+
         // Prüfe Dateiendungen für Bilder
         if (allowedTypes.some(type => type.startsWith('image/'))) {
           // Mapping von Dateiendungen zu MIME-Types

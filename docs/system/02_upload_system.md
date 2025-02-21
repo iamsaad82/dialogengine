@@ -10,6 +10,7 @@ Das Upload-System der DialogEngine ermöglicht das sichere Hochladen und Verarbe
 - PDF (application/pdf)
 - Microsoft Word (.docx, application/vnd.openxmlformats-officedocument.wordprocessingml.document)
 - Text/Markdown (.txt, .md, text/plain, text/markdown)
+- XML (.xml, application/xml, text/xml)
 
 ### Bilder
 - JPEG/JPG (image/jpeg)

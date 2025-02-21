@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
-import type { TemplateHandlerConfig, HandlerConfig } from '@/lib/types/template'
+import { HandlerConfig } from '@/lib/types/template'
+import { TemplateHandlerConfig } from '@/lib/types/bot'
 import { GenerateHandler } from '../handlers/GenerateHandler'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/components/ui/use-toast'
 
 interface TemplateHandlerBotProps {
   config: TemplateHandlerConfig
@@ -15,18 +19,45 @@ interface TemplateHandlerBotProps {
   onChange: (config: TemplateHandlerConfig) => void
 }
 
-export function TemplateHandlerBot({ config = { handlers: [], config: {} }, templateId, onChange }: TemplateHandlerBotProps) {
+const defaultConfig: TemplateHandlerConfig = {
+  type: 'template-handler',
+  active: true,
+  handlers: [],
+  config: {
+    matchThreshold: 0.8,
+    contextWindow: 1000,
+    maxTokens: 500,
+    dynamicResponses: true,
+    includeLinks: true,
+    includeMetadata: true
+  }
+}
+
+export function TemplateHandlerBot({ 
+  config = defaultConfig, 
+  templateId, 
+  onChange 
+}: TemplateHandlerBotProps) {
   const [loading, setLoading] = useState(false)
-  const [handlers, setHandlers] = useState<HandlerConfig[]>([])
+  const [availableHandlers, setAvailableHandlers] = useState<HandlerConfig[]>([])
 
   // Stelle sicher, dass die Konfiguration initialisiert ist
   useEffect(() => {
-    const safeConfig = {
-      handlers: Array.isArray(config?.handlers) ? config.handlers : [],
-      config: config?.config || {}
+    const safeConfig: TemplateHandlerConfig = {
+      type: 'template-handler',
+      active: config.active ?? true,
+      handlers: Array.isArray(config.handlers) ? config.handlers : [],
+      config: {
+        matchThreshold: config.config?.matchThreshold ?? 0.8,
+        contextWindow: config.config?.contextWindow ?? 1000,
+        maxTokens: config.config?.maxTokens ?? 500,
+        dynamicResponses: config.config?.dynamicResponses ?? true,
+        includeLinks: config.config?.includeLinks ?? true,
+        includeMetadata: config.config?.includeMetadata ?? true
+      }
     }
     
-    if (!Array.isArray(config?.handlers)) {
+    if (!Array.isArray(config.handlers)) {
       onChange(safeConfig)
     }
   }, [config])
@@ -40,10 +71,7 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
       try {
         const response = await fetch('/api/handlers')
         const data = await response.json()
-        setHandlers(data.map((handler: any) => ({
-          ...handler,
-          capabilities: handler.capabilities || []
-        })))
+        setAvailableHandlers(data)
       } catch (error) {
         console.error('Fehler beim Laden der Handler:', error)
       }
@@ -53,15 +81,24 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
     loadHandlers()
   }, [templateId])
 
-  const toggleHandler = (handlerId: string) => {
-    const safeConfig = {
-      handlers: Array.isArray(config?.handlers) ? config.handlers : [],
-      config: config?.config || {}
+  const toggleHandler = (handler: HandlerConfig) => {
+    const safeConfig: TemplateHandlerConfig = {
+      type: 'template-handler',
+      active: config.active ?? true,
+      handlers: Array.isArray(config.handlers) ? config.handlers : [],
+      config: {
+        matchThreshold: config.config?.matchThreshold ?? 0.8,
+        contextWindow: config.config?.contextWindow ?? 1000,
+        maxTokens: config.config?.maxTokens ?? 500,
+        dynamicResponses: config.config?.dynamicResponses ?? true,
+        includeLinks: config.config?.includeLinks ?? true,
+        includeMetadata: config.config?.includeMetadata ?? true
+      }
     }
     
-    const newHandlers = safeConfig.handlers.includes(handlerId)
-      ? safeConfig.handlers.filter(id => id !== handlerId)
-      : [...safeConfig.handlers, handlerId]
+    const newHandlers = safeConfig.handlers.includes(handler.id)
+      ? safeConfig.handlers.filter(id => id !== handler.id)
+      : [...safeConfig.handlers, handler.id]
 
     onChange({
       ...safeConfig,
@@ -70,16 +107,59 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
   }
 
   const handleGenerated = (handler: HandlerConfig) => {
-    setHandlers([...handlers, handler])
-    const safeConfig = {
-      handlers: Array.isArray(config?.handlers) ? config.handlers : [],
-      config: config?.config || {}
+    setAvailableHandlers([...availableHandlers, handler])
+    const safeConfig: TemplateHandlerConfig = {
+      type: 'template-handler',
+      active: config.active ?? true,
+      handlers: Array.isArray(config.handlers) ? config.handlers : [],
+      config: {
+        matchThreshold: config.config?.matchThreshold ?? 0.8,
+        contextWindow: config.config?.contextWindow ?? 1000,
+        maxTokens: config.config?.maxTokens ?? 500,
+        dynamicResponses: config.config?.dynamicResponses ?? true,
+        includeLinks: config.config?.includeLinks ?? true,
+        includeMetadata: config.config?.includeMetadata ?? true
+      }
     }
     
     onChange({
       ...safeConfig,
       handlers: [...safeConfig.handlers, handler.id]
     })
+  }
+
+  const handleHandlerDelete = async (handler: HandlerConfig): Promise<void> => {
+    try {
+      const response = await fetch(`/api/handlers/${handler.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Löschen des Handlers')
+      }
+
+      setAvailableHandlers(availableHandlers.filter(h => h.id !== handler.id))
+      const safeConfig: TemplateHandlerConfig = {
+        type: 'template-handler',
+        active: config.active ?? true,
+        handlers: Array.isArray(config.handlers) ? config.handlers : [],
+        config: {
+          matchThreshold: config.config?.matchThreshold ?? 0.8,
+          contextWindow: config.config?.contextWindow ?? 1000,
+          maxTokens: config.config?.maxTokens ?? 500,
+          dynamicResponses: config.config?.dynamicResponses ?? true,
+          includeLinks: config.config?.includeLinks ?? true,
+          includeMetadata: config.config?.includeMetadata ?? true
+        }
+      }
+      
+      onChange({
+        ...safeConfig,
+        handlers: safeConfig.handlers.filter(id => id !== handler.id)
+      })
+    } catch (error) {
+      console.error('Fehler beim Löschen des Handlers:', error)
+    }
   }
 
   if (loading) {
@@ -95,7 +175,7 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
       <div>
         <Label>Verfügbare Handler</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-          {handlers.map(handler => (
+          {availableHandlers.map(handler => (
             <Card key={handler.id} className="p-4">
               <div className="flex items-start justify-between">
                 <div>
@@ -111,7 +191,7 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
                 </div>
                 <Button
                   variant={config.handlers?.includes(handler.id) ? "default" : "outline"}
-                  onClick={() => toggleHandler(handler.id)}
+                  onClick={() => toggleHandler(handler)}
                 >
                   {config.handlers?.includes(handler.id) ? "Aktiv" : "Inaktiv"}
                 </Button>
@@ -132,4 +212,4 @@ export function TemplateHandlerBot({ config = { handlers: [], config: {} }, temp
       </div>
     </div>
   )
-} 
+}

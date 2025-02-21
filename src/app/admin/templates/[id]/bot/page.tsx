@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { BotEditor } from '@/components/admin/template/BotEditor'
-import { BotType, DialogEngineConfig, FlowiseBotConfig, ExamplesBotConfig, ParsedBot } from '@/lib/types/template'
+import { BotType, BotConfig, DialogEngineConfig, FlowiseBotConfig, ExamplesBotConfig, ParsedBot } from '@/lib/types/bot'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
 
@@ -13,19 +13,31 @@ interface BotPageProps {
 }
 
 const defaultFlowiseConfig: FlowiseBotConfig = {
+  type: 'flowise',
   flowId: '',
-  apiKey: ''
+  apiKey: '',
+  apiHost: '',
+  active: true
 }
 
 const defaultExamplesConfig: ExamplesBotConfig = {
-  examples: []
+  type: 'examples',
+  examples: [],
+  active: true,
+  config: {
+    matchThreshold: 0.7,
+    fuzzySearch: true,
+    includeMetadata: true
+  }
 }
 
 const defaultDialogEngineConfig: DialogEngineConfig = {
+  type: 'dialog-engine',
   provider: 'openai',
   model: 'gpt-4',
   temperature: 0.7,
   systemPrompt: 'Du bist ein hilfreicher Assistent.',
+  active: true,
   matchThreshold: 0.7,
   contextWindow: 1000,
   maxTokens: 500,
@@ -33,8 +45,13 @@ const defaultDialogEngineConfig: DialogEngineConfig = {
   includeLinks: true,
   includeMetadata: true,
   streaming: true,
-  fallbackMessage: 'Entschuldigung, ich konnte keine passende Antwort finden.',
-  maxResponseTime: 30000
+  fallbackMessage: "Entschuldigung, ich konnte keine passende Antwort finden. Wie kann ich Ihnen anders helfen?",
+  maxResponseTime: 30000,
+  apiKeys: {
+    openai: '',
+    anthropic: '',
+    mistral: ''
+  }
 }
 
 export default function BotPage({ params }: BotPageProps) {
@@ -67,7 +84,8 @@ export default function BotPage({ params }: BotPageProps) {
 
   const createDefaultBot = (): ParsedBot => ({
     type: 'dialog-engine',
-    config: defaultDialogEngineConfig
+    config: defaultDialogEngineConfig,
+    active: true
   })
 
   const handleTypeChange = (newType: BotType) => {
@@ -90,7 +108,8 @@ export default function BotPage({ params }: BotPageProps) {
 
     const updatedBot: ParsedBot = {
       type: newType,
-      config
+      config,
+      active: true
     }
     handleBotChange(updatedBot)
   }
@@ -147,13 +166,14 @@ export default function BotPage({ params }: BotPageProps) {
     <div>
       <BotEditor 
         type={bot.type}
-        config={bot.config}
+        config={bot.config as DialogEngineConfig | FlowiseBotConfig | ExamplesBotConfig}
         templateId={params.id}
         onTypeChange={handleTypeChange}
         onConfigChange={(newConfig) => {
           const updatedBot: ParsedBot = {
             type: bot.type,
-            config: newConfig
+            config: newConfig,
+            active: bot.active
           }
           handleBotChange(updatedBot)
         }}

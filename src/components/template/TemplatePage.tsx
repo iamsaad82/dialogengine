@@ -1,4 +1,4 @@
-import { Template, ParsedContent, ParsedBranding } from '@/lib/types/template'
+import { Template, ParsedContent, ParsedBranding, ParsedBot } from '@/lib/types/template'
 import { ChatbotLandingPage } from '@/components/ChatbotLandingPage'
 
 interface TemplatePageProps {
@@ -27,32 +27,38 @@ interface TemplatePageProps {
 
 export function TemplatePage({ content, branding, template }: TemplatePageProps) {
   // Konvertiere die Sections in das ParsedContent Format
-  const parsedContent: ParsedContent = {
+  const parsedContent: Partial<ParsedContent> = {
     hero: content.sections.find(s => s.id === 'hero')?.content || {},
     showcase: content.sections.find(s => s.id === 'showcase')?.content || {},
     features: content.sections.find(s => s.id === 'features')?.content?.features || [],
     contact: content.sections.find(s => s.id === 'contact')?.content || {},
-    dialog: content.sections.find(s => s.id === 'dialog')?.content || {}
+    dialog: content.sections.find(s => s.id === 'dialog')?.content || {},
+    examples: []
   }
 
   // Konvertiere das Branding in das ParsedBranding Format
   const parsedBranding: ParsedBranding = {
-    primaryColor: branding.colors.primary,
-    secondaryColor: branding.colors.secondary,
-    backgroundColor: branding.colors.accent,
-    textColor: '#000000',
     logo: branding.logo,
-    font: branding.fonts.body
+    colors: {
+      primary: branding.colors.primary,
+      secondary: branding.colors.secondary
+    },
+    fonts: {
+      primary: branding.fonts.heading,
+      secondary: branding.fonts.body
+    }
   }
 
   // Erstelle eine neue Template-Instanz mit den korrekten Daten
   const templateWithJson = {
     ...template,
     jsonContent: parsedContent,
-    jsonBranding: parsedBranding
+    jsonBranding: parsedBranding,
+    jsonBot: template.bot_config
   } as Template & {
     jsonContent: ParsedContent
     jsonBranding: ParsedBranding
+    jsonBot: string | ParsedBot
   }
 
   return (

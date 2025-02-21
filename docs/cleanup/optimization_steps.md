@@ -61,9 +61,83 @@ CREATE TABLE vectorization_status (
 ## 3. Handler-System Optimierung
 
 ### 3.1 Handler-Generierung
-1. Implementierung der automatischen Handler-Generierung
-2. Integration mit Dokumenten-Verarbeitung
-3. Template-basierte Konfiguration
+```typescript
+// Neue Handler-Struktur
+interface HandlerConfig {
+  type: string
+  name: string
+  active: boolean
+  capabilities: string[]
+  config: {
+    patterns: Array<{
+      name: string
+      pattern: string
+      required: boolean
+      examples: string[]
+      extractMetadata?: string[]
+    }>
+    metadata: Record<string, any>
+    settings: {
+      matchThreshold: number
+      contextWindow: number
+      maxTokens: number
+      dynamicResponses: boolean
+      includeLinks?: boolean
+      includeContact?: boolean
+      includeSteps?: boolean
+      includePrice?: boolean
+      includeAvailability?: boolean
+      useExactMatches?: boolean
+    }
+  }
+  metadata?: {
+    generated?: boolean
+    timestamp?: string
+    version?: string
+    industry?: string
+    category?: string
+    confidence?: number
+    templateId?: string
+  }
+}
+
+// Template-Konfiguration
+interface TemplateConfig {
+  id: string
+  name: string
+  version: string
+  structure: {
+    patterns: Array<{
+      name: string
+      pattern: string
+      required: boolean
+      examples: string[]
+      extractMetadata?: string[]
+    }>
+    sections: Array<{
+      id: string
+      type: string
+      required: boolean
+      fields: string[]
+    }>
+    metadata: Record<string, any>
+    extractors: Array<{
+      field: string
+      pattern: string
+      metadata: string[]
+    }>
+  }
+  handlerConfig: {
+    responseTypes: string[]
+    requiredMetadata: string[]
+    customSettings: {
+      useMarkdown: boolean
+      formatDates: boolean
+      includeMeta: boolean
+    }
+  }
+}
+```
 
 ### 3.2 Handler-Verwaltung
 1. Migration zu `template_handlers` Tabelle

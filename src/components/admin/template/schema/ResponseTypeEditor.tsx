@@ -6,16 +6,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2 } from "lucide-react"
-import type { ResponseType, SchemaDefinition } from '@/lib/types/template'
+import type { ContentType } from '@/lib/types/contentTypes'
+import type { SchemaDefinition } from '@/lib/types/schema'
 
 interface ResponseTypeEditorProps {
   responseTypes: Array<{
-    type: ResponseType
+    type: ContentType
     schema: SchemaDefinition
     templates: string[]
   }>
   onChange: (responseTypes: Array<{
-    type: ResponseType
+    type: ContentType
     schema: SchemaDefinition
     templates: string[]
   }>) => void
@@ -23,7 +24,7 @@ interface ResponseTypeEditorProps {
 
 export function ResponseTypeEditor({ responseTypes = [], onChange }: ResponseTypeEditorProps) {
   const [newType, setNewType] = useState<{
-    type: ResponseType
+    type: ContentType
     schema: SchemaDefinition
     templates: string[]
   }>({
@@ -76,7 +77,7 @@ export function ResponseTypeEditor({ responseTypes = [], onChange }: ResponseTyp
                 <Label>Typ</Label>
                 <Select
                   value={type.type}
-                  onValueChange={(value) => handleUpdate(index, 'type', value)}
+                  onValueChange={(value) => handleUpdate(index, 'type', value as ContentType)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Typ auswählen" />
@@ -114,7 +115,7 @@ export function ResponseTypeEditor({ responseTypes = [], onChange }: ResponseTyp
             <Label>Typ</Label>
             <Select
               value={newType.type}
-              onValueChange={(value) => setNewType({ ...newType, type: value as ResponseType })}
+              onValueChange={(value) => setNewType({ ...newType, type: value as ContentType })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Typ auswählen" />

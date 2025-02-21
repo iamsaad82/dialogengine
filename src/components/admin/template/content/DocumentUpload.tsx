@@ -24,9 +24,10 @@ interface DocumentUploadProps {
 interface UploadProgress {
   fileName: string
   progress: number
-  status: 'uploading' | 'processing' | 'complete' | 'error'
+  status: 'uploading' | 'processing' | 'complete' | 'error' | 'cancelled'
   error?: string
   jobId?: string
+  templateId?: string
   details?: {
     operation?: string
     stage?: string
@@ -212,7 +213,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       'text/markdown': ['.md'],
       'text/x-markdown': ['.md'],
       'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/xml': ['.xml'],
+      'text/xml': ['.xml']
     }
   })
 
@@ -252,7 +255,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                   : 'Dateien hierher ziehen oder klicken zum Auswählen'}
               </p>
               <p className="text-xs text-gray-500 mt-2">
-                Unterstützte Formate: PDF, TXT, DOC, DOCX
+                Unterstützte Formate: PDF, TXT, DOC, DOCX, XML
               </p>
             </div>
 
@@ -358,22 +361,78 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 }
 
 function UploadStatus({ upload }: { upload: UploadProgress }) {
+  const [isCancelling, setIsCancelling] = useState(false)
+
+  const handleCancel = async () => {
+    if (!upload.jobId) return
+    
+    try {
+      setIsCancelling(true)
+      const response = await fetch(`/api/templates/${upload.templateId}/upload/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ jobId: upload.jobId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Abbrechen des Uploads')
+      }
+
+      toast({
+        title: 'Upload abgebrochen',
+        description: 'Der Upload wurde erfolgreich abgebrochen'
+      })
+    } catch (error) {
+      console.error('Fehler beim Abbrechen:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Abbrechen des Uploads',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
   const getStatusColor = () => {
     switch (upload.status) {
       case 'complete':
         return 'bg-green-500'
       case 'error':
         return 'bg-red-500'
+      case 'cancelled':
+        return 'bg-gray-500'
       default:
         return 'bg-blue-500'
     }
   }
 
+  const canBeCancelled = upload.status === 'uploading' || upload.status === 'processing'
+
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex items-center justify-between">
         <span className="font-medium">{upload.fileName}</span>
-        <span className="text-sm text-muted-foreground">{upload.progress}%</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{upload.progress}%</span>
+          {canBeCancelled && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleCancel}
+              disabled={isCancelling}
+            >
+              {isCancelling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
+              <span className="sr-only">Abbrechen</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Fortschrittsbalken */}

@@ -19,11 +19,11 @@ export default function BrandingPage({ params }: BrandingPageProps) {
     colors: {
       primary: '#000000',
       secondary: '#666666',
-      accent: '#CCCCCC'
+      accent: '#333333'
     },
     fonts: {
-      heading: 'Inter',
-      body: 'Inter'
+      primary: 'Inter',
+      secondary: 'Inter'
     }
   })
   const [loading, setLoading] = useState(true)
@@ -49,11 +49,11 @@ export default function BrandingPage({ params }: BrandingPageProps) {
         colors: {
           primary: '#000000',
           secondary: '#666666',
-          accent: '#CCCCCC'
+          accent: '#333333'
         },
         fonts: {
-          heading: 'Inter',
-          body: 'Inter'
+          primary: 'Inter',
+          secondary: 'Inter'
         }
       })
     } catch (error) {

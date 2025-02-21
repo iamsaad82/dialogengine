@@ -9,20 +9,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Plus, Save } from "lucide-react"
 import type { DocumentPattern, MetadataDefinition } from '@/lib/types/template'
-import type { ExtractionSchemaFields, SchemaDefinition } from '@/lib/types/schema'
+import type { ExtractionSchema, SchemaDefinition } from '@/lib/types/schema'
 import { PatternEditor } from './PatternEditor'
 import { MetadataEditor } from './MetadataEditor'
 import { ResponseTypeEditor } from './ResponseTypeEditor'
+import type { ContentType, BaseContentType, ResponseType } from '@/lib/types/contentTypes'
+import type { ResponseContentType } from '@/lib/types/contentTypes'
+import type { MetadataDefinition as CommonMetadataDefinition, ResponseType as CommonResponseType } from '@/lib/types/common'
 
 interface SchemaEditorProps {
   templateId: string
-  schema: ExtractionSchemaFields
-  onChange: (schema: ExtractionSchemaFields) => void
+  schema: ExtractionSchema
+  onUpdate: (schema: ExtractionSchema) => void
 }
 
-export function SchemaEditor({ templateId, schema: initialSchema, onChange }: SchemaEditorProps) {
+export function SchemaEditor({ templateId, schema: initialSchema, onUpdate }: SchemaEditorProps) {
   const [activeTab, setActiveTab] = useState('patterns')
-  const [schema, setSchema] = useState<ExtractionSchemaFields>(initialSchema)
+  const [schema, setSchema] = useState<ExtractionSchema>(initialSchema)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
@@ -36,7 +39,7 @@ export function SchemaEditor({ templateId, schema: initialSchema, onChange }: Sc
 
     try {
       setSaving(true)
-      onChange(schema)
+      onUpdate(schema)
     } catch (error) {
       console.error('Fehler beim Speichern:', error)
       toast({
@@ -48,31 +51,43 @@ export function SchemaEditor({ templateId, schema: initialSchema, onChange }: Sc
     }
   }
 
-  const handlePatternsChange = (patterns: DocumentPattern[]) => {
-    const updatedSchema = {
+  const handlePatternsChange = (patterns: Array<{
+    name: string
+    pattern: string
+    required: boolean
+    examples: string[]
+  }>) => {
+    onUpdate({
       ...schema,
-      patterns
-    }
-    setSchema(updatedSchema)
-    onChange(updatedSchema)
+      fields: {
+        ...schema.fields,
+        patterns
+      }
+    })
   }
 
   const handleMetadataChange = (metadata: MetadataDefinition[]) => {
-    const updatedSchema = {
+    onUpdate({
       ...schema,
-      metadata
-    }
-    setSchema(updatedSchema)
-    onChange(updatedSchema)
+      fields: {
+        ...schema.fields,
+        metadata
+      }
+    })
   }
 
-  const handleResponseTypesChange = (responseTypes: ExtractionSchemaFields['responseTypes']) => {
-    const updatedSchema = {
+  const handleResponseTypesChange = (responseTypes: Array<{
+    type: ContentType
+    schema: SchemaDefinition
+    templates: string[]
+  }>) => {
+    onUpdate({
       ...schema,
-      responseTypes
-    }
-    setSchema(updatedSchema)
-    onChange(updatedSchema)
+      fields: {
+        ...schema.fields,
+        responseTypes
+      }
+    })
   }
 
   if (loading) {
@@ -153,7 +168,7 @@ export function SchemaEditor({ templateId, schema: initialSchema, onChange }: Sc
             </CardHeader>
             <CardContent>
               <PatternEditor
-                patterns={schema.patterns}
+                patterns={schema.fields.patterns}
                 onChange={handlePatternsChange}
               />
             </CardContent>
@@ -170,7 +185,7 @@ export function SchemaEditor({ templateId, schema: initialSchema, onChange }: Sc
             </CardHeader>
             <CardContent>
               <MetadataEditor
-                metadata={schema.metadata}
+                metadata={schema.fields.metadata}
                 onChange={handleMetadataChange}
               />
             </CardContent>
@@ -187,7 +202,7 @@ export function SchemaEditor({ templateId, schema: initialSchema, onChange }: Sc
             </CardHeader>
             <CardContent>
               <ResponseTypeEditor
-                responseTypes={schema.responseTypes}
+                responseTypes={schema.fields.responseTypes}
                 onChange={handleResponseTypesChange}
               />
             </CardContent>

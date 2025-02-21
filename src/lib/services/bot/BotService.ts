@@ -1,13 +1,22 @@
-import { ParsedBot } from '@/lib/types/template'
+import { Template } from '@/lib/types/template'
 import { DocumentLinks } from '../document/types'
 import { HandlerManager } from '../search/handlers/manager'
-import { HandlerConfig } from '../search/handlers/types'
 import { prisma } from '@/lib/prisma'
+import { HandlerConfig } from '@/lib/types/handler'
+import { ParsedBot, SmartSearchConfig, FlowiseBotConfig } from '@/lib/types/bot'
+import { Fact, ResponseContext } from '@/lib/types/facts'
+
+interface BotServiceConfig {
+  openaiApiKey: string
+  pineconeApiKey: string
+  pineconeEnvironment?: string
+  pineconeIndex?: string
+}
 
 export class BotService {
   private handlerManager?: HandlerManager
 
-  constructor(config?: Partial<HandlerConfig>) {
+  constructor(config?: BotServiceConfig) {
     if (config?.openaiApiKey && config?.pineconeApiKey) {
       this.handlerManager = new HandlerManager({
         templateId: '',  // Wird pro Anfrage gesetzt
@@ -34,11 +43,11 @@ export class BotService {
       where: { id: templateId }
     })
 
-    if (!template || !template.jsonBot) {
+    if (!template || !template.bot_config) {
       throw new Error('Template or bot configuration not found')
     }
 
-    const botConfig = JSON.parse(template.jsonBot.toString()) as ParsedBot
+    const botConfig = JSON.parse(template.bot_config.toString()) as ParsedBot
 
     // Verarbeite Nachricht basierend auf Bot-Typ
     switch (botConfig.type) {
@@ -49,16 +58,21 @@ export class BotService {
         return this.processExampleMessage(message, botConfig.examples || [])
       
       case 'flowise':
-        if (!botConfig.flowise) {
+        if (!botConfig.config || typeof botConfig.config !== 'object') {
           throw new Error('Flowise configuration missing')
         }
-        return this.processFlowiseMessage(message, botConfig.flowise)
+        const flowiseConfig = botConfig.config as FlowiseBotConfig
+        return this.processFlowiseMessage(message, {
+          chatflowId: flowiseConfig.flowId,
+          apiHost: flowiseConfig.apiHost,
+          apiKey: flowiseConfig.apiKey
+        })
       
       case 'smart-search':
-        if (!botConfig.smartSearch) {
+        if (!botConfig.config || typeof botConfig.config !== 'object') {
           throw new Error('Smart search configuration missing')
         }
-        return this.processSmartSearchMessage(message, botConfig.smartSearch)
+        return this.processSmartSearchMessage(message, botConfig.config)
       
       default:
         throw new Error(`Unsupported bot type: ${botConfig.type}`)
@@ -84,11 +98,11 @@ export class BotService {
     })
 
     // Extrahiere Links und Medien aus den Quellen
-    const links = this.extractLinksFromSources(response.metadata.sources || [])
+    const links = this.extractLinksFromSources(response.metadata?.sources || [])
 
     return {
       text: response.text,
-      type: response.metadata.category,
+      type: response.metadata?.category,
       metadata: {
         ...response.metadata,
         links
@@ -121,28 +135,65 @@ export class BotService {
     message: string,
     flowiseConfig: { chatflowId: string; apiHost: string; apiKey: string }
   ) {
-    // Bestehende Flowise-Bot Logik
-    // ... (existierender Code)
-    return {
-      text: "Flowise response", // Placeholder
-      type: 'info'
+    try {
+      const response = await fetch(`${flowiseConfig.apiHost}/api/v1/prediction/${flowiseConfig.chatflowId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${flowiseConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          question: message
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Flowise API error')
+      }
+
+      const data = await response.json()
+      return {
+        text: data.text || data.answer || 'Keine Antwort erhalten',
+        type: 'info',
+        metadata: data.metadata || {}
+      }
+    } catch (error) {
+      console.error('Flowise processing error:', error)
+      return {
+        text: 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage.',
+        type: 'error'
+      }
     }
   }
 
   private async processSmartSearchMessage(
     message: string,
-    searchConfig: ParsedBot['smartSearch']
+    searchConfig: ParsedBot['config']
   ) {
-    if (!searchConfig) return {
-      text: "Configuration error",
-      type: 'error'
+    if (!this.handlerManager) {
+      throw new Error('HandlerManager not initialized')
     }
-    
-    // Bestehende Smart-Search Logik
-    // ... (existierender Code)
-    return {
-      text: "Smart search response", // Placeholder
-      type: 'info'
+
+    try {
+      const response = await this.handlerManager.processRequest({
+        query: message,
+        type: 'smart-search',
+        metadata: {
+          config: searchConfig
+        }
+      })
+
+      return {
+        text: response.text,
+        type: response.metadata?.category || 'info',
+        metadata: response.metadata
+      }
+    } catch (error) {
+      console.error('Smart search processing error:', error)
+      return {
+        text: 'Entschuldigung, es gab einen Fehler bei der Suche.',
+        type: 'error'
+      }
     }
   }
 
@@ -300,28 +351,186 @@ export class BotService {
     return response + linkSections.join('')
   }
 
-  public generateResponse(handler: HandlerConfig, query: string): string {
-    if (!handler.settings.dynamicResponses) {
+  public async generateResponse(handler: HandlerConfig, query: string): Promise<string> {
+    if (!handler.config?.settings?.dynamicResponses) {
       // Fallback auf statische Antwort
-      const response = handler.responses.find(r => r.type === 'standard')
-      return response?.content || 'Leider kann ich dazu keine Information finden.'
+      return 'Leider kann ich dazu keine Information finden.'
     }
 
     // Wähle Response-Typ basierend auf der Anfrage-Komplexität
     const isDetailedQuery = query.length > 50 || query.includes('detail') || query.includes('genau')
-    const responseType = isDetailedQuery ? 'detailed' : 'dynamic'
+    
+    return isDetailedQuery ? 
+      await this.generateDetailedResponse(handler, query) :
+      await this.generateSimpleResponse(handler, query)
+  }
 
-    const response = handler.responses.find(r => r.type === responseType)
-    if (!response || !response.templates || !response.facts) {
-      return 'Entschuldigung, ich kann diese Frage momentan nicht beantworten.'
+  private async generateDetailedResponse(handler: HandlerConfig, query: string): Promise<string> {
+    // Implementierung der detaillierten Antwortgenerierung
+    const facts = await this.extractRelevantFacts(handler, query)
+    const context = await this.buildResponseContext(handler, facts)
+    
+    return this.formatDetailedResponse(context, {
+      includeLinks: handler.config.settings.includeLinks,
+      includeSteps: handler.config.settings.includeSteps,
+      includePrice: handler.config.settings.includePrice,
+      includeContact: handler.config.settings.includeContact
+    })
+  }
+
+  private async generateSimpleResponse(handler: HandlerConfig, query: string): Promise<string> {
+    // Implementierung der einfachen Antwortgenerierung
+    const mainFact = await this.extractMainFact(handler, query)
+    return this.formatSimpleResponse(mainFact, {
+      includeLinks: handler.config.settings.includeLinks
+    })
+  }
+
+  private async extractRelevantFacts(handler: HandlerConfig, query: string): Promise<Fact[]> {
+    if (!this.handlerManager) {
+      throw new Error('HandlerManager not initialized')
     }
 
-    const template = this.getRandomTemplate(response.templates)
-    return this.formatResponse(
-      template, 
-      response.facts, 
-      response.additionalFacts,
-      handler.settings.includeLinks ? response.links : undefined
-    )
+    try {
+      // Hole relevante Chunks aus dem Vector Store
+      const response = await this.handlerManager.processRequest({
+        query,
+        type: 'fact-extraction',
+        metadata: {
+          handlerId: handler.id,
+          settings: handler.config.settings
+        }
+      })
+
+      // Konvertiere die Chunks in Fakten
+      return response.metadata?.sources?.map((source: any) => ({
+        id: source.id || crypto.randomUUID(),
+        type: source.metadata?.type || 'info',
+        description: source.text,
+        confidence: source.score || 1.0,
+        source: source.url,
+        metadata: {
+          category: source.metadata?.category,
+          subcategory: source.metadata?.subcategory,
+          tags: source.metadata?.tags,
+          relevance: source.score,
+          context: source.metadata?.context,
+          name: source.metadata?.name,
+          phone: source.metadata?.phone,
+          email: source.metadata?.email,
+          address: source.metadata?.address,
+          hours: source.metadata?.hours
+        },
+        links: source.metadata?.links?.map((link: any) => ({
+          url: link.url,
+          title: link.title,
+          type: link.type || 'external'
+        }))
+      })) || []
+    } catch (error) {
+      console.error('Error extracting facts:', error)
+      return []
+    }
+  }
+
+  private async extractMainFact(handler: HandlerConfig, query: string): Promise<Fact> {
+    const facts = await this.extractRelevantFacts(handler, query)
+    
+    // Wähle den relevantesten Fakt
+    const mainFact = facts.reduce((best, current) => {
+      const bestScore = best.metadata?.relevance || 0
+      const currentScore = current.metadata?.relevance || 0
+      return currentScore > bestScore ? current : best
+    }, facts[0] || {
+      id: crypto.randomUUID(),
+      type: 'info',
+      description: 'Keine relevante Information gefunden.',
+      confidence: 0.5
+    })
+
+    return mainFact
+  }
+
+  private async buildResponseContext(handler: HandlerConfig, facts: Fact[]): Promise<ResponseContext> {
+    // Extrahiere Metadaten aus den Fakten
+    const priceInfo = facts.find(f => f.metadata?.category === 'price')
+    const contactInfo = facts.find(f => f.metadata?.category === 'contact')
+    const stepsInfo = facts.filter(f => f.metadata?.category === 'steps')
+
+    return {
+      facts,
+      metadata: handler.metadata || {},
+      settings: handler.config.settings,
+      steps: stepsInfo.map(f => f.description),
+      price: priceInfo ? {
+        amount: parseFloat(priceInfo.description.match(/\d+(\.\d+)?/)?.[0] || '0'),
+        currency: priceInfo.description.match(/[€$]/)?.[0] || '€',
+        description: priceInfo.description
+      } : undefined,
+      contact: contactInfo?.metadata ? {
+        name: contactInfo.metadata.name || '',
+        phone: contactInfo.metadata.phone || '',
+        email: contactInfo.metadata.email || '',
+        address: contactInfo.metadata.address,
+        hours: contactInfo.metadata.hours
+      } : undefined
+    }
+  }
+
+  private formatDetailedResponse(context: ResponseContext, options: {
+    includeLinks?: boolean
+    includeSteps?: boolean
+    includePrice?: boolean
+    includeContact?: boolean
+  }): string {
+    let response = ''
+
+    // Hauptinformationen
+    if (context.facts.length > 0) {
+      response += context.facts
+        .map(fact => fact.description)
+        .join('\n\n')
+    }
+
+    // Optionale Informationen
+    if (options.includeSteps && context.steps) {
+      response += '\n\n**Nächste Schritte:**\n'
+      response += context.steps.join('\n')
+    }
+
+    if (options.includePrice && context.price) {
+      response += `\n\n**Kosten:** ${context.price.amount} ${context.price.currency}`
+      if (context.price.description) {
+        response += `\n${context.price.description}`
+      }
+    }
+
+    if (options.includeContact && context.contact) {
+      response += '\n\n**Kontakt:**\n'
+      response += `${context.contact.name}\n`
+      response += `Tel: ${context.contact.phone}\n`
+      response += `E-Mail: ${context.contact.email}`
+      if (context.contact.address) {
+        response += `\nAdresse: ${context.contact.address}`
+      }
+      if (context.contact.hours) {
+        response += `\nÖffnungszeiten: ${context.contact.hours}`
+      }
+    }
+
+    return response
+  }
+
+  private formatSimpleResponse(mainFact: any, options: {
+    includeLinks?: boolean
+  }): string {
+    // Formatiere einfache Antwort
+    let response = mainFact.description || ''
+
+    if (options.includeLinks && mainFact.links) {
+      response += '\n\nMehr Informationen: ' + mainFact.links[0]
+    }
+
+    return response
   }
 } 

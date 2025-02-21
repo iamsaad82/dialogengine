@@ -5,7 +5,7 @@
 ### 1. Alte Handler-Struktur
 Kompletter Ordner: `/src/lib/services/handlers/aok/`
 
-#### Betroffene Dateien:
+#### Betroffene Dateien: 
 - `AOKHandlerManager.ts`
 - `BaseAOKHandler.ts`
 - `DentalHandler.ts`
@@ -40,25 +40,79 @@ Diese werden in einem neuen, vereinheitlichten Content-Management zusammengefüh
 ### 1. Handler-System
 ```typescript
 // Neue Handler-Struktur
-interface TemplateHandler {
-  id: string;
-  templateId: string;
-  type: string;
-  capabilities: string[];
-  config: HandlerConfig;
-  metadata: HandlerMetadata;
+interface HandlerConfig {
+  type: string
+  name: string
+  active: boolean
+  capabilities: string[]
+  config: {
+    patterns: Array<{
+      name: string
+      pattern: string
+      required: boolean
+      examples: string[]
+      extractMetadata?: string[]
+    }>
+    metadata: Record<string, any>
+    settings: {
+      matchThreshold: number
+      contextWindow: number
+      maxTokens: number
+      dynamicResponses: boolean
+      includeLinks?: boolean
+      includeContact?: boolean
+      includeSteps?: boolean
+      includePrice?: boolean
+      includeAvailability?: boolean
+      useExactMatches?: boolean
+    }
+  }
+  metadata?: {
+    generated?: boolean
+    timestamp?: string
+    version?: string
+    industry?: string
+    category?: string
+    confidence?: number
+    templateId?: string
+  }
 }
 
-// Datenbank-Schema (existiert bereits)
-model template_handlers {
-  id         String
-  templateId String
-  type       String
-  name       String
-  active     Boolean
-  metadata   Json
-  config     Json
-  templates  Template
+// Template-Konfiguration
+interface TemplateConfig {
+  id: string
+  name: string
+  version: string
+  structure: {
+    patterns: Array<{
+      name: string
+      pattern: string
+      required: boolean
+      examples: string[]
+      extractMetadata?: string[]
+    }>
+    sections: Array<{
+      id: string
+      type: string
+      required: boolean
+      fields: string[]
+    }>
+    metadata: Record<string, any>
+    extractors: Array<{
+      field: string
+      pattern: string
+      metadata: string[]
+    }>
+  }
+  handlerConfig: {
+    responseTypes: string[]
+    requiredMetadata: string[]
+    customSettings: {
+      useMarkdown: boolean
+      formatDates: boolean
+      includeMeta: boolean
+    }
+  }
 }
 ```
 

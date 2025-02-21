@@ -18,7 +18,7 @@ interface BrandingEditorProps {
 
 interface ColorInputProps {
   label: string
-  value: string
+  value: string | undefined
   onChange: (value: string) => void
 }
 
@@ -144,17 +144,17 @@ export function BrandingEditor({ branding, onChange, saving = false }: BrandingE
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <ColorInput
             label="Primärfarbe"
-            value={branding.colors.primary}
+            value={branding.colors.primary || '#000000'}
             onChange={(value) => handleChange('colors.primary', value)}
           />
           <ColorInput
             label="Sekundärfarbe"
-            value={branding.colors.secondary}
+            value={branding.colors.secondary || '#666666'}
             onChange={(value) => handleChange('colors.secondary', value)}
           />
           <ColorInput
             label="Akzentfarbe"
-            value={branding.colors.accent}
+            value={branding.colors.accent || '#333333'}
             onChange={(value) => handleChange('colors.accent', value)}
           />
         </div>
@@ -185,40 +185,81 @@ export function BrandingEditor({ branding, onChange, saving = false }: BrandingE
       <div className="space-y-4">
         <h3 className="font-medium">Schriftarten</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FontSelect
-            label="Überschriften"
-            value={branding.fonts.heading}
-            onChange={(value) => handleChange('fonts.heading', value)}
-          />
-          <FontSelect
-            label="Fließtext"
-            value={branding.fonts.body}
-            onChange={(value) => handleChange('fonts.body', value)}
-          />
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label>Primäre Schrift</Label>
+            <Select
+              value={branding.fonts.primary}
+              onValueChange={(value) => handleChange('fonts.primary', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Schriftart wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Inter">Inter</SelectItem>
+                <SelectItem value="Roboto">Roboto</SelectItem>
+                <SelectItem value="Open Sans">Open Sans</SelectItem>
+                <SelectItem value="Lato">Lato</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="mt-4 p-4 rounded-lg border bg-muted">
-          <p className="text-sm text-muted-foreground mb-2">Schriftarten-Vorschau:</p>
-          <h4 className="text-xl mb-2" style={{ fontFamily: branding.fonts.heading }}>
-            Überschrift in {branding.fonts.heading}
-          </h4>
-          <p style={{ fontFamily: branding.fonts.body }}>
-            Dies ist ein Beispieltext in {branding.fonts.body}. Er zeigt, wie die ausgewählte Schriftart im Fließtext aussieht.
-          </p>
+          <div>
+            <Label>Sekundäre Schrift</Label>
+            <Select
+              value={branding.fonts.secondary}
+              onValueChange={(value) => handleChange('fonts.secondary', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Schriftart wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Inter">Inter</SelectItem>
+                <SelectItem value="Roboto">Roboto</SelectItem>
+                <SelectItem value="Open Sans">Open Sans</SelectItem>
+                <SelectItem value="Lato">Lato</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Überschriften</Label>
+            <Select
+              value={branding.fonts.headings}
+              onValueChange={(value) => handleChange('fonts.headings', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Schriftart wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Inter">Inter</SelectItem>
+                <SelectItem value="Roboto">Roboto</SelectItem>
+                <SelectItem value="Open Sans">Open Sans</SelectItem>
+                <SelectItem value="Lato">Lato</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+      </div>
+
+      {/* Custom CSS */}
+      <div>
+        <Label>Benutzerdefiniertes CSS</Label>
+        <textarea
+          className="mt-2 w-full h-32 px-3 py-2 rounded-md border border-input bg-background text-sm"
+          value={branding.customCss || ''}
+          onChange={(e) => handleChange('customCss', e.target.value)}
+          placeholder=":root { /* Ihre benutzerdefinierten CSS-Variablen */ }"
+        />
       </div>
 
       {/* Speichern Button */}
       <div className="flex justify-end">
-        <Button 
-          onClick={() => onChange(branding)}
-          disabled={saving || !hasChanges}
-        >
+        <Button disabled={!hasChanges || saving}>
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Wird gespeichert...
+              Speichern...
             </>
           ) : (
             'Änderungen speichern'

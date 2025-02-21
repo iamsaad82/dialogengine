@@ -18,24 +18,34 @@ const createDefaultContent = (): ParsedContent => ({
   hero: {
     title: 'Willkommen',
     subtitle: 'Untertitel hier einfügen',
-    description: 'Beschreibung hier einfügen'
+    description: 'Beschreibung hier einfügen',
+    image: '/images/default-hero.jpg'
   },
   showcase: {
-    image: '',
-    altText: '',
+    title: 'Unsere Leistungen',
+    image: '/images/showcase.jpg',
+    altText: 'Showcase Bild',
     context: {
       title: 'Showcase Titel',
       description: 'Showcase Beschreibung'
     },
     cta: {
       title: 'Haben Sie Fragen?',
+      hint: 'Wir sind für Sie da',
       question: 'Wie können wir Ihnen helfen?'
     },
-    contact: {
-      text: 'Sprechen Sie mit uns',
-      type: 'email',
-      value: ''
-    }
+    items: [
+      {
+        title: 'Leistung 1',
+        description: 'Beschreibung der Leistung 1',
+        image: '/images/service1.jpg'
+      },
+      {
+        title: 'Leistung 2',
+        description: 'Beschreibung der Leistung 2',
+        image: '/images/service2.jpg'
+      }
+    ]
   },
   features: [
     {
@@ -57,13 +67,26 @@ const createDefaultContent = (): ParsedContent => ({
   contact: {
     title: 'Kontakt',
     description: 'Kontaktieren Sie uns',
-    email: '',
+    email: 'kontakt@example.com',
+    phone: '+49 123 456789',
+    address: 'Musterstraße 1, 12345 Stadt',
     buttonText: 'Kontakt aufnehmen'
   },
   dialog: {
     title: 'Chat',
-    description: 'Wie können wir Ihnen helfen?'
-  }
+    description: 'Wie können wir Ihnen helfen?',
+    examples: [
+      {
+        question: 'Was sind Ihre Öffnungszeiten?',
+        answer: 'Wir sind rund um die Uhr für Sie da.'
+      },
+      {
+        question: 'Wie kann ich Sie erreichen?',
+        answer: 'Sie können uns per E-Mail oder Telefon kontaktieren.'
+      }
+    ]
+  },
+  examples: []
 })
 
 export default function ContentPage({ params }: { params: { id: string } }) {
@@ -98,11 +121,12 @@ export default function ContentPage({ params }: { params: { id: string } }) {
       // Konvertiere das Datenformat
       const sections = data.content.sections
       const parsedContent: ParsedContent = {
-        hero: sections.find((s: Section) => s.id === 'hero')?.content || createDefaultContent().hero,
-        showcase: sections.find((s: Section) => s.id === 'showcase')?.content || createDefaultContent().showcase,
-        features: sections.find((s: Section) => s.id === 'features')?.content?.features || createDefaultContent().features,
-        contact: sections.find((s: Section) => s.id === 'contact')?.content || createDefaultContent().contact,
-        dialog: sections.find((s: Section) => s.id === 'dialog')?.content || createDefaultContent().dialog
+        hero: sections.hero || createDefaultContent().hero,
+        showcase: sections.showcase || createDefaultContent().showcase,
+        features: sections.features || createDefaultContent().features,
+        contact: sections.contact || createDefaultContent().contact,
+        dialog: sections.dialog || createDefaultContent().dialog,
+        examples: sections.examples || []
       }
       
       setContent(parsedContent)
@@ -110,10 +134,9 @@ export default function ContentPage({ params }: { params: { id: string } }) {
     } catch (error) {
       console.error('Fehler beim Laden der Inhalte:', error)
       toast({
-        title: "Fehler",
-        description: "Die Inhalte konnten nicht geladen werden."
+        title: 'Fehler',
+        description: 'Die Inhalte konnten nicht geladen werden.'
       })
-      // Setze Default-Content im Fehlerfall
       setContent(createDefaultContent())
       setLocalContent(createDefaultContent())
     } finally {

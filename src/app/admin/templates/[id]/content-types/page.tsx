@@ -5,7 +5,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { ResponseTypeManager } from '@/components/admin/template/content/ResponseTypeManager'
-import type { Template } from '@/lib/schemas/template'
+import { Template } from '@/lib/types/template'
+import { ResponseFormat } from '@/components/admin/template/content/ResponseTypeManager'
 
 interface ContentTypesPageProps {
   params: {
@@ -44,30 +45,35 @@ export default function ContentTypesPage({ params }: ContentTypesPageProps) {
     }
   }
 
-  const handleTemplateUpdate = async (updatedTemplate: Template) => {
+  const handleUpdate = async (formats: ResponseFormat[]) => {
+    if (!template) return
+
     try {
+      const updatedTemplate = {
+        ...template,
+        response_formats: formats
+      }
+
       const response = await fetch(`/api/templates/${params.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(updatedTemplate),
+        body: JSON.stringify(updatedTemplate)
       })
-      
-      if (!response.ok) {
-        throw new Error('Fehler beim Speichern des Templates')
-      }
+
+      if (!response.ok) throw new Error('Fehler beim Speichern')
       
       setTemplate(updatedTemplate)
       toast({
         title: 'Erfolg',
-        description: 'Die Antwortformate wurden gespeichert.'
+        description: 'Die Änderungen wurden gespeichert.'
       })
     } catch (error) {
-      console.error('Fehler beim Speichern des Templates:', error)
+      console.error('Fehler beim Speichern:', error)
       toast({
         title: 'Fehler',
-        description: 'Die Antwortformate konnten nicht gespeichert werden.'
+        description: 'Die Änderungen konnten nicht gespeichert werden.'
       })
     }
   }
@@ -99,7 +105,7 @@ export default function ContentTypesPage({ params }: ContentTypesPageProps) {
         <div className="bg-white rounded-lg border p-6">
           <ResponseTypeManager 
             template={template} 
-            onUpdate={handleTemplateUpdate}
+            onUpdate={handleUpdate}
           />
         </div>
       </div>
