@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,90 +14,67 @@ interface VectorStats {
   vectorsByType: Record<string, number>
   averageScore: number
   lastUpdate: string
-  status: 'ready' | 'indexing' | 'error'
+  status: 'idle' | 'indexing' | 'error'
   error?: string
 }
 
 interface VectorManagerProps {
   templateId: string
   contentTypes: ContentTypeResult[]
+  onVectorUpdate?: () => void
 }
 
-export function VectorManager({ templateId, contentTypes }: VectorManagerProps) {
-  const [stats, setStats] = useState<VectorStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [indexing, setIndexing] = useState(false)
+export const VectorManager: React.FC<VectorManagerProps> = ({
+  templateId,
+  contentTypes,
+  onVectorUpdate
+}) => {
+  const [stats, setStats] = useState<VectorStats>({
+    totalVectors: 0,
+    vectorsByType: {},
+    averageScore: 0,
+    lastUpdate: '',
+    status: 'idle'
+  })
 
   useEffect(() => {
-    loadStats()
+    fetchVectorStats()
   }, [templateId])
 
-  const loadStats = async () => {
+  const fetchVectorStats = async () => {
     try {
       const response = await fetch(`/api/templates/${templateId}/vectors/stats`)
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Fehler beim Laden der Statistiken')
-      }
-
       setStats(data)
     } catch (error) {
       console.error('Fehler beim Laden der Vector-Statistiken:', error)
     }
-    setLoading(false)
   }
 
-  const startIndexing = async () => {
-    setIndexing(true)
+  const handleReindex = async () => {
     try {
+      setStats(prev => ({ ...prev, status: 'indexing' }))
+      
       const response = await fetch(`/api/templates/${templateId}/vectors/reindex`, {
         method: 'POST'
       })
-      const data = await response.json()
-
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Fehler beim Reindexieren')
+        throw new Error('Reindexierung fehlgeschlagen')
       }
 
-      // Starte Polling für den Status
-      pollIndexingStatus()
+      await fetchVectorStats()
+      onVectorUpdate?.()
     } catch (error) {
-      console.error('Fehler beim Starten der Vektorisierung:', error)
-      setIndexing(false)
+      console.error('Fehler bei der Reindexierung:', error)
+      setStats(prev => ({ ...prev, status: 'error' }))
     }
   }
 
-  const pollIndexingStatus = async () => {
-    try {
-      const response = await fetch(`/api/templates/${templateId}/vectors/status`)
-      const data = await response.json()
-
-      setStats(prev => ({ ...prev, ...data }))
-
-      if (data.status === 'indexing') {
-        setTimeout(pollIndexingStatus, 1000)
-      } else {
-        setIndexing(false)
-      }
-    } catch (error) {
-      console.error('Fehler beim Status-Check:', error)
-      setIndexing(false)
-    }
-  }
-
-  if (loading) {
+  if (stats.status === 'error') {
     return (
-      <div className="flex items-center justify-center p-4">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!stats) {
-    return (
-      <div className="text-center p-4 text-muted-foreground">
-        Keine Vector-Statistiken verfügbar
+      <div className="text-center p-4 text-red-500">
+        Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.
       </div>
     )
   }
@@ -104,21 +82,16 @@ export function VectorManager({ templateId, contentTypes }: VectorManagerProps) 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-medium">Vector Store Status</h3>
-          <p className="text-sm text-muted-foreground">
-            Letzte Aktualisierung: {new Date(stats.lastUpdate).toLocaleString()}
-          </p>
-        </div>
+        <h3 className="text-lg font-medium">Vector Management</h3>
         <Button
           variant="outline"
-          onClick={startIndexing}
-          disabled={indexing || stats.status === 'indexing'}
+          onClick={handleReindex}
+          disabled={stats.status === 'indexing'}
         >
-          {indexing || stats.status === 'indexing' ? (
+          {stats.status === 'indexing' ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Wird indexiert...
+              Indexierung läuft...
             </>
           ) : (
             <>
@@ -142,7 +115,7 @@ export function VectorManager({ templateId, contentTypes }: VectorManagerProps) 
           <div className="space-y-1">
             <p className="text-sm font-medium">Status</p>
             <div>
-              {stats.status === 'ready' ? (
+              {stats.status === 'idle' ? (
                 <Badge className="bg-green-500">
                   Bereit
                 </Badge>

@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -9,28 +10,70 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertCircle, CheckCircle2, Edit2, Save, X } from "lucide-react"
-import type { ContentTypeResult, ContentTypeError, ResponseType } from '@/lib/types/template'
+import type { ContentTypeResult, ContentTypeError } from '@/lib/types/template'
+import { BaseContentType, BaseContentTypes, ContentType, ContentTypeDefinition, ResponseContentType } from '@/lib/types/contentTypes'
+import { ResponseContentTypes } from '@/lib/types/contentTypes'
 
 const RESPONSE_TYPES = [
-  { value: 'info', label: 'Information' },
-  { value: 'service', label: 'Service' },
-  { value: 'product', label: 'Produkt' },
-  { value: 'event', label: 'Event' },
-  { value: 'location', label: 'Standort' },
-  { value: 'video', label: 'Video' },
-  { value: 'link', label: 'Link' },
-  { value: 'contact', label: 'Kontakt' },
-  { value: 'faq', label: 'FAQ' },
-  { value: 'download', label: 'Download' }
-] as const
+  { value: ResponseContentTypes.TEXT, label: 'Text' },
+  { value: ResponseContentTypes.LIST, label: 'Liste' },
+  { value: ResponseContentTypes.TABLE, label: 'Tabelle' },
+  { value: ResponseContentTypes.CARD, label: 'Karte' },
+  { value: ResponseContentTypes.LINK, label: 'Link' },
+  { value: ResponseContentTypes.DOWNLOAD, label: 'Download' },
+  { value: ResponseContentTypes.IMAGE, label: 'Bild' },
+  { value: ResponseContentTypes.VIDEO, label: 'Video' },
+  { value: ResponseContentTypes.CUSTOM, label: 'Benutzerdefiniert' },
+  { value: ResponseContentTypes.WARNING, label: 'Warnung' },
+  { value: ResponseContentTypes.SUCCESS, label: 'Erfolg' },
+  { value: ResponseContentTypes.STRUCTURED, label: 'Strukturiert' },
+  { value: ResponseContentTypes.MEDIA, label: 'Medien' },
+  { value: ResponseContentTypes.INTERACTIVE, label: 'Interaktiv' },
+  { value: ResponseContentTypes.COMPOSITE, label: 'Zusammengesetzt' }
+]
 
 interface ContentTypeEditorProps {
   templateId: string
   contentTypes: ContentTypeResult[]
   onUpdate: (types: ContentTypeResult[]) => void
+  type: ContentType
+  error?: ContentTypeError
+  metadata?: Record<string, any>
+  onChange: (type: ContentType) => void
+  onMetadataChange: (metadata: Record<string, any>) => void
 }
 
-export function ContentTypeEditor({ templateId, contentTypes, onUpdate }: ContentTypeEditorProps) {
+const validateContentType = (type: string): type is BaseContentType => {
+  return Object.values(BaseContentTypes).includes(type as BaseContentType)
+}
+
+const validateResponseType = (type: string): type is ResponseContentType => {
+  return Object.values(ResponseContentTypes).includes(type as ResponseContentType)
+}
+
+const getResponseTypeIcon = (type: string) => {
+  if (!validateResponseType(type)) return null
+
+  switch (type) {
+    case ResponseContentTypes.SUCCESS:
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />
+    case ResponseContentTypes.WARNING:
+      return <AlertCircle className="h-4 w-4 text-yellow-500" />
+    default:
+      return null
+  }
+}
+
+export const ContentTypeEditor: React.FC<ContentTypeEditorProps> = ({
+  templateId,
+  contentTypes,
+  onUpdate,
+  type,
+  error,
+  metadata = {},
+  onChange,
+  onMetadataChange
+}) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editedType, setEditedType] = useState<ContentTypeResult | null>(null)
 
@@ -84,6 +127,19 @@ export function ContentTypeEditor({ templateId, contentTypes, onUpdate }: Conten
     }
   }
 
+  const handleTypeChange = (newType: string) => {
+    if (validateContentType(newType)) {
+      onChange(newType)
+    }
+  }
+
+  const handleMetadataChange = (key: string, value: any) => {
+    onMetadataChange({
+      ...metadata,
+      [key]: value
+    })
+  }
+
   return (
     <div className="space-y-4">
       {contentTypes.map((type, index) => (
@@ -102,9 +158,9 @@ export function ContentTypeEditor({ templateId, contentTypes, onUpdate }: Conten
                     <SelectValue placeholder="Typ auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {RESPONSE_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
+                    {RESPONSE_TYPES.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -169,8 +225,7 @@ export function ContentTypeEditor({ templateId, contentTypes, onUpdate }: Conten
                     </Badge>
                   ) : (
                     <Badge className="bg-green-500">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Validiert
+                      {getResponseTypeIcon(type.type)}
                     </Badge>
                   )}
                 </div>
@@ -191,6 +246,60 @@ export function ContentTypeEditor({ templateId, contentTypes, onUpdate }: Conten
           )}
         </Card>
       ))}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Content-Typ
+        </label>
+        <select
+          value={type}
+          onChange={(e) => handleTypeChange(e.target.value)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        >
+          {RESPONSE_TYPES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <X className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                {error.message}
+              </h3>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Metadaten
+          </label>
+          <div className="mt-1">
+            <Textarea
+              value={JSON.stringify(metadata, null, 2)}
+              onChange={(e) => {
+                try {
+                  const newMetadata = JSON.parse(e.target.value)
+                  onMetadataChange(newMetadata)
+                } catch (error) {
+                  // Ignoriere ungültiges JSON
+                }
+              }}
+              className="h-32"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 } 
