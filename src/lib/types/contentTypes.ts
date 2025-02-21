@@ -1,143 +1,181 @@
-// Basis Content Types
-export enum BaseContentType {
-  INFO = 'info',
+import { DocumentPattern, MetadataDefinition } from './common'
+
+// Basis Content Types für interne Verarbeitung
+export const BaseContentTypes = {
+  DEFAULT: 'default',
+  SERVICE: 'service',
+  PRODUCT: 'product',
+  ARTICLE: 'article',
+  FAQ: 'faq',
+  CONTACT: 'contact',
+  EVENT: 'event',
+  DOWNLOAD: 'download',
+  VIDEO: 'video',
+  IMAGE: 'image',
+  FORM: 'form',
+  PROFILE: 'profile',
+  LOCATION: 'location',
+  TEXT: 'text',
+  TUTORIAL: 'tutorial',
+  DOCUMENT: 'document'
+} as const
+
+// Response Types für die Ausgabe
+export enum ResponseContentTypes {
+  TEXT = 'text',
+  LIST = 'list',
+  TABLE = 'table',
+  CARD = 'card',
+  LINK = 'link',
+  DOWNLOAD = 'download',
+  IMAGE = 'image',
+  VIDEO = 'video',
+  CUSTOM = 'custom',
   WARNING = 'warning',
-  ERROR = 'error',
-  SUCCESS = 'success'
+  SUCCESS = 'success',
+  STRUCTURED = 'structured',
+  MEDIA = 'media',
+  INTERACTIVE = 'interactive',
+  COMPOSITE = 'composite'
 }
 
-// Business Domain Types
-export enum DomainContentType {
-  MEDICAL = 'medical',
-  INSURANCE = 'insurance',
-  CITY_ADMINISTRATION = 'city-administration',
-  SHOPPING_CENTER = 'shopping-center',
-  DEFAULT = 'default'
-}
-
-// AOK-specific Content Types
-export enum AOKContentType {
-  MEDICAL = 'aok-medical',
-  PREVENTION = 'aok-prevention',
-  INSURANCE = 'aok-insurance',
-  SERVICE = 'aok-service',
-  BONUS = 'aok-bonus',
-  CURAPLAN = 'aok-curaplan',
-  FAMILY = 'aok-family',
-  DIGITAL = 'aok-digital',
-  EMERGENCY = 'aok-emergency',
-  CONTACT = 'aok-contact'
-}
-
-// Union type for all content types
-export type ContentType = BaseContentType | DomainContentType | AOKContentType
+// Type definitions
+export type BaseContentType = typeof BaseContentTypes[keyof typeof BaseContentTypes]
+export type ResponseContentType = ResponseContentTypes
+export type ResponseType = ResponseContentType
+export type ContentType = BaseContentType
 
 // Helper object for easy access
 export const ContentTypes = {
-  // Base types
-  Info: BaseContentType.INFO,
-  Warning: BaseContentType.WARNING,
-  Error: BaseContentType.ERROR,
-  Success: BaseContentType.SUCCESS,
-
-  // Domain types
-  Medical: DomainContentType.MEDICAL,
-  Insurance: DomainContentType.INSURANCE,
-  CityAdministration: DomainContentType.CITY_ADMINISTRATION,
-  ShoppingCenter: DomainContentType.SHOPPING_CENTER,
-  Default: DomainContentType.DEFAULT,
-
-  // AOK types
-  AOKMedical: AOKContentType.MEDICAL,
-  AOKPrevention: AOKContentType.PREVENTION,
-  AOKInsurance: AOKContentType.INSURANCE,
-  AOKService: AOKContentType.SERVICE,
-  AOKBonus: AOKContentType.BONUS,
-  AOKCuraPlan: AOKContentType.CURAPLAN,
-  AOKFamily: AOKContentType.FAMILY,
-  AOKDigital: AOKContentType.DIGITAL,
-  AOKEmergency: AOKContentType.EMERGENCY,
-  AOKContact: AOKContentType.CONTACT
+  ...BaseContentTypes,
+  ...ResponseContentTypes
 } as const
-
-// All available content categories
-export const CONTENT_CATEGORIES = [
-  ...Object.values(BaseContentType),
-  ...Object.values(DomainContentType),
-  ...Object.values(AOKContentType)
-] as const
-
-export type ContentCategory = typeof CONTENT_CATEGORIES[number]
 
 // Type guards
 export function isBaseContentType(type: string): type is BaseContentType {
-  return Object.values(BaseContentType).includes(type as BaseContentType)
+  return true // Erlaubt dynamische Types
 }
 
-export function isDomainContentType(type: string): type is DomainContentType {
-  return Object.values(DomainContentType).includes(type as DomainContentType)
-}
-
-export function isAOKContentType(type: string): type is AOKContentType {
-  return Object.values(AOKContentType).includes(type as AOKContentType)
+export function isResponseContentType(type: string): type is ResponseContentType {
+  return Object.values(ResponseContentTypes).includes(type as ResponseContentType)
 }
 
 export function isValidContentType(type: string): type is ContentType {
-  return isBaseContentType(type) || isDomainContentType(type) || isAOKContentType(type)
+  return Object.values(BaseContentTypes).includes(type as BaseContentType) || type.length > 0
 }
 
-// Labels for UI display
-export const ContentCategoryLabels: Record<ContentCategory, string> = {
-  // Base types
-  [BaseContentType.INFO]: 'Information',
-  [BaseContentType.WARNING]: 'Warnung',
-  [BaseContentType.ERROR]: 'Fehler',
-  [BaseContentType.SUCCESS]: 'Erfolg',
-
-  // Domain types
-  [DomainContentType.CITY_ADMINISTRATION]: 'Stadtverwaltung',
-  [DomainContentType.MEDICAL]: 'Medizin',
-  [DomainContentType.INSURANCE]: 'Versicherung',
-  [DomainContentType.SHOPPING_CENTER]: 'Einkaufszentrum',
-  [DomainContentType.DEFAULT]: 'Standard',
-
-  // AOK types
-  [AOKContentType.MEDICAL]: 'Medizinische Informationen',
-  [AOKContentType.INSURANCE]: 'Versicherungsleistungen',
-  [AOKContentType.PREVENTION]: 'Vorsorge & Prävention',
-  [AOKContentType.SERVICE]: 'Service & Beratung',
-  [AOKContentType.BONUS]: 'Bonusprogramme',
-  [AOKContentType.CURAPLAN]: 'Curaplan Programme',
-  [AOKContentType.FAMILY]: 'Familie & Kinder',
-  [AOKContentType.DIGITAL]: 'Digitale Angebote',
-  [AOKContentType.EMERGENCY]: 'Notfall & Bereitschaft',
-  [AOKContentType.CONTACT]: 'Kontakt & Support'
+// Interface definitions
+export interface ContentTypeMetadata {
+  title?: string
+  description?: string
+  classification?: {
+    type: BaseContentType
+    purpose?: string
+    confidence: number
+  }
+  domain?: string
+  subDomain?: string
+  keywords?: string[]
+  requirements?: string[]
+  coverage?: string[]
+  provider?: string
+  contactPoints?: any[]
+  version?: string
+  category?: string
 }
 
-// Descriptions for documentation and tooltips
-export const ContentCategoryDescriptions: Record<ContentCategory, string> = {
-  // Base types
-  [BaseContentType.INFO]: 'Allgemeine Informationen',
-  [BaseContentType.WARNING]: 'Wichtige Hinweise und Warnungen',
-  [BaseContentType.ERROR]: 'Fehlermeldungen und Probleme',
-  [BaseContentType.SUCCESS]: 'Erfolgsmeldungen und Bestätigungen',
-
-  // Domain types
-  [DomainContentType.CITY_ADMINISTRATION]: 'Informationen zur Stadtverwaltung',
-  [DomainContentType.MEDICAL]: 'Allgemeine medizinische Informationen',
-  [DomainContentType.INSURANCE]: 'Allgemeine Versicherungsinformationen',
-  [DomainContentType.SHOPPING_CENTER]: 'Informationen zum Einkaufszentrum',
-  [DomainContentType.DEFAULT]: 'Standardinformationen',
-
-  // AOK types
-  [AOKContentType.MEDICAL]: 'Informationen zu Krankheiten, Behandlungen und medizinischen Leistungen',
-  [AOKContentType.INSURANCE]: 'Details zu Versicherungsleistungen, Tarifen und Zusatzversicherungen',
-  [AOKContentType.PREVENTION]: 'Vorsorgeangebote, Gesundheitskurse und Präventionsmaßnahmen',
-  [AOKContentType.SERVICE]: 'Allgemeine Serviceleistungen und Beratungsangebote',
-  [AOKContentType.BONUS]: 'Informationen zu Bonusprogrammen und Prämien',
-  [AOKContentType.CURAPLAN]: 'Spezielle Programme für chronisch kranke Menschen',
-  [AOKContentType.FAMILY]: 'Angebote und Leistungen für Familien und Kinder',
-  [AOKContentType.DIGITAL]: 'Online-Services, Apps und digitale Gesundheitsangebote',
-  [AOKContentType.EMERGENCY]: 'Informationen für Notfälle und ärztliche Bereitschaftsdienste',
-  [AOKContentType.CONTACT]: 'Kontaktmöglichkeiten und Supportinformationen'
+export interface ContentTypeDefinition {
+  id: string
+  type: BaseContentType
+  name: string
+  description?: string
+  metadata: ContentTypeMetadata
+  patterns?: DocumentPattern[]
+  validators?: Array<(content: string) => Promise<boolean>>
+  validation?: {
+    patterns: DocumentPattern[]
+    required: string[]
+    rules: string[]
+  }
 }
+
+export interface ContentTypeConfig {
+  type: ContentType
+  patterns: string[]
+  weight: number
+}
+
+export interface ContentTypeMap {
+  [key: string]: string[]
+}
+
+export interface ExtendedDetectionResult {
+  type: BaseContentType
+  confidence: number
+  patterns: Array<{ 
+    pattern: string
+    matches: string[] 
+  }>
+  weight: number
+  metadata: {
+    domain: string
+    subDomain: string
+    classification?: {
+      type: string
+      purpose: string
+      audience: string
+    }
+    relationships?: {
+      parentTopic: string
+      relatedTopics: string[]
+      possibleMergeTargets: string[]
+    }
+    keywords?: string[]
+    requirements?: string[]
+    provider?: string
+    coverage?: string[]
+    nextSteps?: string[]
+    contactPoints?: Array<{
+      type: string
+      value: string
+      description?: string
+    }>
+    generated?: boolean
+    timestamp?: string
+    source?: string
+    [key: string]: any
+  }
+  suggestedMetadata: Record<string, unknown>
+}
+
+// Registry für dynamische Content-Types
+export interface ContentTypeRegistry {
+  register(definition: ContentTypeDefinition): Promise<void>;
+  get(id: string): Promise<ContentTypeDefinition | undefined>;
+  list(): Promise<ContentTypeDefinition[]>;
+  update(id: string, definition: Partial<ContentTypeDefinition>): Promise<void>;
+  remove(id: string): Promise<void>;
+  validateContent(content: string, typeId: string): Promise<boolean>;
+}
+
+// Error types
+export interface ContentTypeError {
+  type: 'unknown_type' | 'low_confidence' | 'missing_metadata' | 'invalid_format'
+  message: string
+  suggestedType?: ContentType
+  originalContent?: {
+    url: string
+    title: string
+    excerpt: string
+  }
+}
+
+export interface ContentTypeResult {
+  type: ContentType
+  confidence: number
+  metadata: ContentTypeMetadata
+  error?: ContentTypeError
+}
+
+// Re-export common types
+export type { DocumentPattern, MetadataDefinition } 

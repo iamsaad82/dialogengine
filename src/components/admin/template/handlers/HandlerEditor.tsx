@@ -25,17 +25,18 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
     capabilities: Array.isArray(handler.capabilities) ? handler.capabilities : []
   })
   
-  const { types, isLoading } = useHandlerTypes()
+  const { data, isLoading, error } = useHandlerTypes()
+  const types = data?.types || []
 
   const handleChange = (field: keyof HandlerConfig, value: any) => {
-    setEditedHandler(prev => ({
+    setEditedHandler((prev: HandlerConfig) => ({
       ...prev,
       [field]: value
     }))
   }
 
   const handleSettingChange = (field: string, value: any) => {
-    setEditedHandler(prev => ({
+    setEditedHandler((prev: HandlerConfig) => ({
       ...prev,
       config: {
         ...prev.config,
@@ -48,12 +49,20 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
   }
 
   // Gruppiere Capabilities nach Typ
-  const groupedCapabilities = editedHandler.capabilities.reduce((acc, cap) => {
+  const groupedCapabilities = editedHandler.capabilities.reduce((acc: Record<string, string[]>, cap: string) => {
     const [type] = cap.split(':')
     if (!acc[type]) acc[type] = []
     acc[type].push(cap)
     return acc
   }, {} as Record<string, string[]>)
+
+  if (isLoading) {
+    return <div>Lade Handler-Typen...</div>
+  }
+
+  if (error) {
+    return <div>Fehler beim Laden der Handler-Typen: {error.message}</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -71,36 +80,32 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
         
         <Card className="p-4 space-y-4">
           <div>
-            <Label>Name</Label>
+            <Label>Bezeichnung</Label>
             <p className="text-sm text-muted-foreground mb-2">
-              {editedHandler.metadata?.generated 
-                ? "Automatisch generierter Name basierend auf den analysierten Dokumenten"
-                : "Name des Handlers"}
+              Der Name, unter dem dieser Handler im System angezeigt wird
             </p>
             <Input
               value={editedHandler.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="z.B. FAQ Handler, Produkt Handler"
+              placeholder="z.B. Sport und Ernährung, Gesundheitsvorsorge"
             />
           </div>
 
           <div>
-            <Label>Typ</Label>
+            <Label>Kategorie</Label>
             <p className="text-sm text-muted-foreground mb-2">
-              {editedHandler.metadata?.generated 
-                ? "Automatisch erkannter Dokumenttyp"
-                : "Art des Handlers"}
+              Die Art der Inhalte, die dieser Handler verarbeitet
             </p>
             <Select
               value={editedHandler.type}
               onValueChange={(value) => handleChange('type', value)}
-              disabled={isLoading}
+              disabled={editedHandler.metadata?.generated}
             >
               <SelectTrigger>
-                <SelectValue placeholder={isLoading ? "Lade Handler-Typen..." : "Typ auswählen"} />
+                <SelectValue placeholder={isLoading ? "Lade Kategorien..." : "Kategorie auswählen"} />
               </SelectTrigger>
               <SelectContent>
-                {types?.map(type => (
+                {types.map(type => (
                   <SelectItem key={type.id} value={type.id}>
                     {type.label}
                   </SelectItem>
@@ -115,137 +120,116 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
                 checked={editedHandler.active}
                 onCheckedChange={(checked) => handleChange('active', checked)}
               />
-              <span>Handler aktiv</span>
+              <span>Aktiv</span>
             </Label>
             <p className="text-sm text-muted-foreground mt-1">
-              Aktivieren Sie diese Option, um den Handler im System zu verwenden
+              Wenn aktiviert, wird dieser Handler für die Beantwortung von Fragen verwendet
             </p>
           </div>
         </Card>
       </div>
 
-      {/* Fähigkeiten */}
+      {/* Themen und Schlagworte */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Erkannte Fähigkeiten</h3>
+        <h3 className="text-lg font-medium">Themen und Schlagworte</h3>
         <Card className="p-4">
           <div className="space-y-4">
-            {Object.entries(groupedCapabilities).map(([type, capabilities]) => (
-              <div key={type}>
-                <Label className="mb-2">{type}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {capabilities.map((cap) => (
-                    <Badge key={cap} variant="secondary">
-                      {cap.split(':')[1]}
-                    </Badge>
-                  ))}
+            {editedHandler.metadata?.suggestedMetadata && (
+              <>
+                <div>
+                  <Label>Bereich</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {editedHandler.metadata.suggestedMetadata.domain} - {editedHandler.metadata.suggestedMetadata.subDomain}
+                  </p>
                 </div>
-              </div>
-            ))}
-            {Object.keys(groupedCapabilities).length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Keine Fähigkeiten definiert
-              </p>
+
+                <div>
+                  <Label>Schlagworte</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editedHandler.metadata.suggestedMetadata.keywords?.map((keyword: string) => (
+                      <Badge key={keyword}>{keyword}</Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Abdeckung</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editedHandler.metadata.suggestedMetadata.coverage?.map((item: string) => (
+                      <Badge key={item} variant="outline">{item}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </Card>
       </div>
 
-      {/* Erweiterte Einstellungen */}
+      {/* Antwortverhalten */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Erweiterte Einstellungen</h3>
+        <h3 className="text-lg font-medium">Antwortverhalten</h3>
         
-        <Card className="p-4">
-          <Label>Genauigkeit der Übereinstimmung</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            Bestimmt, wie genau eine Anfrage mit dem vorhandenen Inhalt übereinstimmen muss.
-            Ein höherer Wert (näher an 1.0) bedeutet präzisere Antworten, aber möglicherweise weniger Treffer.
-          </p>
-          <Input
-            type="number"
-            min={0}
-            max={1}
-            step={0.1}
-            value={editedHandler.config.settings.matchThreshold}
-            onChange={(e) => handleSettingChange('matchThreshold', parseFloat(e.target.value))}
-          />
-        </Card>
+        <Card className="p-4 space-y-4">
+          <div>
+            <Label className="flex items-center gap-2">
+              <Switch
+                checked={editedHandler.config.settings.dynamicResponses}
+                onCheckedChange={(checked) => handleSettingChange('dynamicResponses', checked)}
+              />
+              <span>Flexible Antworten</span>
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Ermöglicht es dem System, Antworten flexibel an die Frage anzupassen
+            </p>
+          </div>
 
-        <Card className="p-4">
-          <Label>Kontextfenster</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            Die Anzahl der Zeichen, die als Kontext um einen gefundenen Treffer herum berücksichtigt werden.
-            Ein größeres Fenster liefert mehr Kontext für präzisere Antworten.
-          </p>
-          <Input
-            type="number"
-            min={500}
-            max={2000}
-            step={100}
-            value={editedHandler.config.settings.contextWindow}
-            onChange={(e) => handleSettingChange('contextWindow', parseInt(e.target.value))}
-          />
-        </Card>
+          <div>
+            <Label className="flex items-center gap-2">
+              <Switch
+                checked={editedHandler.config.settings.includeLinks}
+                onCheckedChange={(checked) => handleSettingChange('includeLinks', checked)}
+              />
+              <span>Weiterführende Links</span>
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Fügt passende Links zu weiteren Informationen in die Antworten ein
+            </p>
+          </div>
 
-        <Card className="p-4">
-          <Label>Maximale Antwortlänge</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            Die maximale Länge der generierten Antworten in Tokens.
-            Ein Token entspricht etwa 4 Zeichen oder einem Wort.
-          </p>
-          <Input
-            type="number"
-            min={200}
-            max={1000}
-            step={50}
-            value={editedHandler.config.settings.maxTokens}
-            onChange={(e) => handleSettingChange('maxTokens', parseInt(e.target.value))}
-          />
-        </Card>
-
-        <Card className="p-4">
-          <Label className="flex items-center gap-2">
-            <Switch
-              checked={editedHandler.config.settings.dynamicResponses}
-              onCheckedChange={(checked) => handleSettingChange('dynamicResponses', checked)}
-            />
-            <span>Dynamische Antworten</span>
-          </Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            Wenn aktiviert, kann der Handler Antworten dynamisch an den Kontext anpassen.
-            Dies führt zu natürlicheren Antworten, die besser auf die spezifische Frage eingehen.
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <Label className="flex items-center gap-2">
-            <Switch
-              checked={editedHandler.config.settings.includeLinks}
-              onCheckedChange={(checked) => handleSettingChange('includeLinks', checked)}
-            />
-            <span>Links einbinden</span>
-          </Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            Fügt relevante Links zu weiteren Informationen in die Antworten ein.
-            Nützlich für Verweise auf detaillierte Produktseiten oder weiterführende Informationen.
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <Label className="flex items-center gap-2">
-            <Switch
-              checked={editedHandler.config.settings.useExactMatches}
-              onCheckedChange={(checked) => handleSettingChange('useExactMatches', checked)}
-            />
-            <span>Exakte Übereinstimmungen bevorzugen</span>
-          </Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            Wenn aktiviert, werden exakte Übereinstimmungen in den Dokumenten bevorzugt.
-            Dies kann die Präzision erhöhen, aber möglicherweise weniger Treffer liefern.
-          </p>
+          <div>
+            <Label className="flex items-center gap-2">
+              <Switch
+                checked={editedHandler.config.settings.useExactMatches}
+                onCheckedChange={(checked) => handleSettingChange('useExactMatches', checked)}
+              />
+              <span>Präzise Antworten</span>
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Bevorzugt exakte Übereinstimmungen für präzisere Antworten
+            </p>
+          </div>
         </Card>
       </div>
 
-      <div className="flex justify-end gap-2">
+      {/* Verknüpfte Dokumente */}
+      {editedHandler.metadata?.documents && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Verknüpfte Dokumente</h3>
+          <Card className="p-4">
+            <div className="space-y-2">
+              {editedHandler.metadata.documents.map((doc: any) => (
+                <div key={doc.filename} className="flex items-center justify-between text-sm">
+                  <span>{doc.filename}</span>
+                  <Badge variant="outline">{new Date(doc.addedAt).toLocaleDateString()}</Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-4">
         <Button variant="outline" onClick={onCancel}>
           Abbrechen
         </Button>
