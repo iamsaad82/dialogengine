@@ -22,9 +22,10 @@ interface HandlerListProps {
   handlers: HandlerConfig[]
   onEdit: (handler: HandlerConfig) => void
   onDelete: (handler: HandlerConfig) => void
+  templateId: string
 }
 
-export function HandlerList({ handlers, onEdit, onDelete }: HandlerListProps) {
+export function HandlerList({ handlers, onEdit, onDelete, templateId }: HandlerListProps) {
   const [deleteHandler, setDeleteHandler] = useState<HandlerConfig | null>(null)
   const { toast } = useToast()
 
@@ -32,7 +33,7 @@ export function HandlerList({ handlers, onEdit, onDelete }: HandlerListProps) {
     if (!deleteHandler) return
 
     try {
-      const response = await fetch(`/api/handlers/${deleteHandler.id}`, {
+      const response = await fetch(`/api/templates/${templateId}/handlers/${deleteHandler.id}`, {
         method: 'DELETE'
       })
 

@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Template, ParsedContent, ParsedBranding, ParsedBot, ParsedMeta } from '@/lib/types/template'
+import { Template, ParsedContent, ParsedBranding, ParsedBot } from '@/lib/types/template'
+import { DialogEngineConfig, FlowiseBotConfig, ExamplesBotConfig } from '@/lib/types/bot'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +12,6 @@ import { Switch } from "@/components/ui/switch"
 import { BotEditor } from './template/BotEditor'
 import { BrandingEditor } from './template/BrandingEditor'
 import { ContentEditor } from './template/ContentEditor'
-import { MetadataEditor } from './template/meta/MetadataEditor'
 import { AnalyticsEditor } from './template/AnalyticsEditor'
 import { toast } from 'sonner'
 import { Loader2, Save } from 'lucide-react'
@@ -27,9 +27,13 @@ const defaultContent: ParsedContent = {
   hero: {
     title: '',
     subtitle: '',
-    description: ''
+    description: '',
+    image: ''
   },
+  features: [],
+  examples: [],
   showcase: {
+    title: '',
     image: '',
     altText: '',
     context: {
@@ -38,95 +42,87 @@ const defaultContent: ParsedContent = {
     },
     cta: {
       title: '',
+      hint: '',
       question: ''
-    }
+    },
+    items: []
   },
-  features: [
-    {
-      title: '',
-      description: '',
-      icon: ''
-    }
-  ],
   contact: {
     title: '',
-    description: '',
     email: '',
+    phone: '',
+    address: '',
+    description: '',
     buttonText: ''
   },
   dialog: {
     title: '',
-    description: ''
+    description: '',
+    examples: []
   }
 }
 
 const defaultBranding: ParsedBranding = {
   logo: '',
-  primaryColor: '#4F46E5',
-  secondaryColor: '#7C3AED',
-  backgroundColor: '#FFFFFF',
-  textColor: '#000000',
-  font: 'Inter'
+  colors: {
+    primary: '#4F46E5',
+    secondary: '#7C3AED'
+  },
+  fonts: {
+    primary: 'Inter'
+  }
 }
 
 const defaultBot: ParsedBot = {
   type: 'examples',
-  examples: [],
-  flowiseId: ''
+  config: {
+    type: 'examples',
+    active: true,
+    examples: [],
+    config: {
+      matchThreshold: 0.7,
+      fuzzySearch: true,
+      includeMetadata: true
+    }
+  },
+  active: true,
+  examples: []
 }
 
-const defaultMeta: ParsedMeta = {
-  title: '',
-  description: '',
-  domain: '',
-  contactUrl: '/kontakt',
-  servicesUrl: '/leistungen'
+const defaultTemplate: Template = {
+  id: '',
+  name: '',
+  type: 'NEUTRAL',
+  active: true,
+  subdomain: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  flowiseConfigId: null,
+  branding: defaultBranding,
+  bot_config: defaultBot,
+  handlers: [],
+  meta: {
+    title: '',
+    description: '',
+    keywords: [],
+    author: '',
+    image: '',
+    url: ''
+  },
+  content: {
+    metadata: {},
+    sections: []
+  },
+  description: null
 }
 
 export default function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
-  const defaultTemplate: Template = {
-    id: '',
-    name: '',
-    type: 'NEUTRAL',
-    active: true,
-    subdomain: '',
-    jsonContent: JSON.stringify(defaultContent),
-    jsonBranding: JSON.stringify(defaultBranding),
-    jsonBot: JSON.stringify(defaultBot),
-    jsonMeta: JSON.stringify(defaultMeta),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-
   const [currentTemplate, setCurrentTemplate] = useState<Template>(() => {
     if (!template) return defaultTemplate
 
     console.log('Template vor der Initialisierung:', template)
     
-    const parseJson = (jsonString: string, defaultValue: any) => {
-      try {
-        if (typeof jsonString !== 'string') return jsonString
-        if (jsonString.trim() === '') return defaultValue
-        return jsonString.startsWith('"') 
-          ? JSON.parse(JSON.parse(jsonString))
-          : JSON.parse(jsonString)
-      } catch (error) {
-        console.error('JSON Parse Error:', error)
-        return defaultValue
-      }
-    }
-    
-    const parsedTemplate = {
-      ...template,
-      jsonContent: parseJson(template.jsonContent, defaultContent),
-      jsonBranding: parseJson(template.jsonBranding, defaultBranding),
-      jsonBot: parseJson(template.jsonBot, defaultBot),
-      jsonMeta: parseJson(template.jsonMeta, defaultMeta)
-    }
-    
-    console.log('Geparste Template:', parsedTemplate)
-    
-    return parsedTemplate
+    return template
   })
 
   useEffect(() => {
@@ -159,7 +155,26 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
   const handleContentChange = (content: ParsedContent) => {
     setCurrentTemplate({
       ...currentTemplate,
-      jsonContent: content
+      content: {
+        ...currentTemplate.content,
+        sections: [
+          {
+            id: 'main',
+            type: 'main',
+            title: content.hero.title,
+            subtitle: content.hero.subtitle,
+            content: content.hero.description,
+            image: content.hero.image
+          },
+          ...content.features.map((feature, index) => ({
+            id: `feature-${index}`,
+            type: 'feature',
+            title: feature.title,
+            content: feature.description,
+            image: feature.icon
+          }))
+        ]
+      }
     })
     setHasChanges(true)
   }
@@ -167,7 +182,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
   const handleBrandingChange = (branding: ParsedBranding) => {
     setCurrentTemplate({
       ...currentTemplate,
-      jsonBranding: branding
+      branding
     })
     setHasChanges(true)
   }
@@ -175,15 +190,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
   const handleBotChange = async (bot: ParsedBot) => {
     setCurrentTemplate({
       ...currentTemplate,
-      jsonBot: bot
-    })
-    setHasChanges(true)
-  }
-
-  const handleMetaChange = (meta: ParsedMeta) => {
-    setCurrentTemplate({
-      ...currentTemplate,
-      jsonMeta: meta
+      bot_config: bot
     })
     setHasChanges(true)
   }
@@ -201,7 +208,10 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                 <Input
                   id="name"
                   value={currentTemplate.name}
-                  onChange={(e) => setCurrentTemplate({ ...currentTemplate, name: e.target.value })}
+                  onChange={(e) => {
+                    setCurrentTemplate({ ...currentTemplate, name: e.target.value })
+                    setHasChanges(true)
+                  }}
                   required
                 />
               </div>
@@ -210,7 +220,10 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                 <Input
                   id="subdomain"
                   value={currentTemplate.subdomain || ''}
-                  onChange={(e) => setCurrentTemplate({ ...currentTemplate, subdomain: e.target.value })}
+                  onChange={(e) => {
+                    setCurrentTemplate({ ...currentTemplate, subdomain: e.target.value || null })
+                    setHasChanges(true)
+                  }}
                 />
               </div>
             </div>
@@ -219,14 +232,16 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                 <Label htmlFor="type">Template Typ</Label>
                 <Select
                   value={currentTemplate.type}
-                  onValueChange={(value) => setCurrentTemplate({ ...currentTemplate, type: value as Template['type'] })}
+                  onValueChange={(value) => {
+                    setCurrentTemplate({ ...currentTemplate, type: value })
+                    setHasChanges(true)
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Wählen Sie einen Typ" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NEUTRAL">Neutral</SelectItem>
-                    <SelectItem value="INDUSTRY">Branche</SelectItem>
                     <SelectItem value="CUSTOM">Individuell</SelectItem>
                   </SelectContent>
                 </Select>
@@ -236,7 +251,10 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                 <Switch
                   id="active"
                   checked={currentTemplate.active}
-                  onCheckedChange={(checked) => setCurrentTemplate({ ...currentTemplate, active: checked })}
+                  onCheckedChange={(checked) => {
+                    setCurrentTemplate({ ...currentTemplate, active: checked })
+                    setHasChanges(true)
+                  }}
                 />
               </div>
             </div>
@@ -247,58 +265,82 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
       {/* Tabs */}
       <div className="bg-white rounded-lg border">
         <Tabs defaultValue="content" className="w-full">
-          <div className="border-b px-6 py-4">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
-              <TabsTrigger value="content">Inhalte</TabsTrigger>
-              <TabsTrigger value="branding">Branding</TabsTrigger>
-              <TabsTrigger value="bot">Bot</TabsTrigger>
-              <TabsTrigger value="meta">Meta</TabsTrigger>
-              <TabsTrigger value="content-types">Inhaltstypen</TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="grid w-full grid-cols-4 gap-4 p-4">
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="branding">Branding</TabsTrigger>
+            <TabsTrigger value="bot">Bot</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-          <div className="p-6">
-            <TabsContent value="content">
-              <ContentEditor
-                content={currentTemplate.jsonContent as ParsedContent}
-                onChange={handleContentChange}
-              />
-            </TabsContent>
+          <TabsContent value="content" className="p-6">
+            <ContentEditor 
+              content={{
+                hero: {
+                  title: currentTemplate.content.sections.find(s => s.type === 'main')?.title || '',
+                  subtitle: currentTemplate.content.sections.find(s => s.type === 'main')?.subtitle || '',
+                  description: currentTemplate.content.sections.find(s => s.type === 'main')?.content || '',
+                  image: currentTemplate.content.sections.find(s => s.type === 'main')?.image || ''
+                },
+                features: currentTemplate.content.sections
+                  .filter(s => s.type === 'feature')
+                  .map(f => ({
+                    title: f.title,
+                    description: f.content,
+                    icon: f.image || ''
+                  })),
+                examples: [],
+                contact: {
+                  title: '',
+                  email: '',
+                  phone: '',
+                  address: '',
+                  description: '',
+                  buttonText: ''
+                },
+                dialog: {
+                  title: '',
+                  description: '',
+                  examples: []
+                }
+              }}
+              onChange={handleContentChange} 
+            />
+          </TabsContent>
 
-            <TabsContent value="branding">
-              <BrandingEditor
-                branding={currentTemplate.jsonBranding as ParsedBranding}
-                onChange={handleBrandingChange}
-              />
-            </TabsContent>
+          <TabsContent value="branding" className="p-6">
+            <BrandingEditor 
+              branding={typeof currentTemplate.branding === 'string' 
+                ? JSON.parse(currentTemplate.branding) 
+                : currentTemplate.branding
+              } 
+              onChange={handleBrandingChange} 
+            />
+          </TabsContent>
 
-            <TabsContent value="bot">
-              <BotEditor
-                bot={currentTemplate.jsonBot as ParsedBot}
-                onChange={handleBotChange}
-                templateId={currentTemplate.id}
-              />
-            </TabsContent>
+          <TabsContent value="bot" className="p-6">
+            <BotEditor 
+              type={currentTemplate.bot_config.type}
+              config={currentTemplate.bot_config.type === 'examples' 
+                ? currentTemplate.bot_config.config as ExamplesBotConfig
+                : currentTemplate.bot_config.type === 'flowise'
+                ? currentTemplate.bot_config.config as FlowiseBotConfig
+                : currentTemplate.bot_config.config as DialogEngineConfig
+              }
+              templateId={currentTemplate.id}
+              onTypeChange={(type) => handleBotChange({
+                ...currentTemplate.bot_config,
+                type
+              })}
+              onConfigChange={(config) => handleBotChange({
+                ...currentTemplate.bot_config,
+                config
+              })}
+            />
+          </TabsContent>
 
-            <TabsContent value="meta">
-              <MetadataEditor
-                meta={currentTemplate.jsonMeta as ParsedMeta}
-                onChange={handleMetaChange}
-              />
-            </TabsContent>
-
-            <TabsContent value="content-types">
-              <div className="space-y-4">
-                {currentTemplate.id ? (
-                  <ContentTypeManager templateId={currentTemplate.id} />
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    Bitte speichern Sie das Template zuerst, um Inhaltstypen zu verwalten.
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </div>
+          <TabsContent value="analytics" className="p-6">
+            <AnalyticsEditor templateId={currentTemplate.id} />
+          </TabsContent>
         </Tabs>
       </div>
 

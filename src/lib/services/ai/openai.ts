@@ -1,184 +1,237 @@
-import OpenAI from 'openai'
-import { ContentTypeRegistry, ExtendedDetectionResult, BaseContentType, BaseContentTypes } from '@/lib/types/contentTypes'
+import { OpenAI } from 'openai'
+import { Logger } from '@/lib/utils/logger'
+import { ContentMetadata } from '@/lib/types/upload/analysis'
+import { ContentTypeRegistryService } from '../registry/content-type-registry'
 
 interface OpenAIConfig {
   apiKey: string
-  registry: ContentTypeRegistry
+  registry: ContentTypeRegistryService
+}
+
+interface AnalysisResult {
+  type: string
+  confidence: number
+  metadata: ContentMetadata
+}
+
+interface Pattern {
+  title: string
+  description: string
+  regex: string
+  confidence: number
+}
+
+interface Field {
+  name: string
+  type: string
+  required: boolean
+  description: string
+  value?: string
+}
+
+interface Section {
+  title: string
+  content: string
 }
 
 export class OpenAIService {
   private client: OpenAI
-  private registry: ContentTypeRegistry
+  private registry: ContentTypeRegistryService
+  private logger: Logger
 
   constructor(config: OpenAIConfig) {
     this.client = new OpenAI({
       apiKey: config.apiKey
     })
     this.registry = config.registry
+    this.logger = new Logger('OpenAIService')
   }
 
-  public async analyzeContent(content: string): Promise<ExtendedDetectionResult> {
+  async analyzeContent(content: string): Promise<AnalysisResult> {
     try {
-      console.log('Starte intelligente Content-Analyse...');
-
-      const prompt = `Analysiere den folgenden Content und identifiziere die geschäftliche Domäne und thematischen Zusammenhänge.
-      
-      Fokussiere dabei auf:
-      1. Geschäftsbereich/Domäne (z.B. Gesundheit, Versicherung, Finanzen)
-      2. Spezifischen Teilbereich (z.B. Impfungen, Zahnversicherung, Altersvorsorge)
-      3. Art der Information (z.B. Produktbeschreibung, Anleitung, Kontaktinformation)
-      4. Zielgruppe und Kontext
-      5. Verbindungen zu anderen möglichen Themen
-      
-      Wichtig: Identifiziere übergeordnete Kategorien statt spezifischer Einzelthemen.
-      
-      Content:
-      ${content.slice(0, 2000)}
-
-      Antworte im folgenden JSON-Format:
-      {
-        "domain": {
-          "main": "Hauptgeschäftsbereich",
-          "sub": "Spezifischer Teilbereich",
-          "confidence": "Konfidenz zwischen 0 und 1"
-        },
-        "classification": {
-          "type": "Informationstyp",
-          "purpose": "Zweck des Inhalts",
-          "audience": "Zielgruppe"
-        },
-        "relationships": {
-          "parentTopic": "Übergeordnetes Thema",
-          "relatedTopics": ["Verwandte", "Themen"],
-          "possibleMergeTargets": ["Ähnliche", "Themenbereiche"]
-        },
-        "metadata": {
-          "keywords": ["Wichtige", "Schlüsselwörter"],
-          "requirements": ["Voraussetzungen"],
-          "provider": "Anbieter der Leistung",
-          "coverage": ["Leistungsumfang"],
-          "nextSteps": ["Nächste", "Schritte"],
-          "contactPoints": [
-            {
-              "type": "Art des Kontakts",
-              "value": "Kontaktdaten",
-              "description": "Beschreibung"
-            }
-          ]
-        }
-      }`;
-
       const completion = await this.client.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-        response_format: { type: "json_object" }
-      });
-
-      const response = completion.choices[0].message.content;
-      if (!response) {
-        throw new Error('Keine Antwort vom Modell erhalten');
-      }
-
-      console.log('Intelligente Analyse abgeschlossen');
-      const result = JSON.parse(response);
-
-      // Normalisiere und validiere das Ergebnis
-      const contentType = this.determineContentType(result)
-      return {
-        type: contentType,
-        confidence: result.domain.confidence,
-        patterns: [
+        model: 'gpt-4-turbo-preview',
+        messages: [
           {
-            pattern: result.domain.main,
-            matches: [result.domain.sub]
+            role: 'system',
+            content: `Du bist ein Experte für Inhaltsanalyse. Analysiere den folgenden Text und extrahiere die wichtigsten Informationen.
+            WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein, einschließlich aller Metadaten, Schlagworte und Beschreibungen.
+            
+            Gib das Ergebnis als JSON-Objekt mit folgender Struktur zurück:
+            {
+              type: string (Art des Inhalts),
+              confidence: number (0-1, wie sicher bist du),
+              metadata: {
+                domain: string (Hauptbereich, auf Deutsch),
+                subDomain: string (Unterbereich, auf Deutsch),
+                provider?: string (Anbieter),
+                serviceType?: string (Art der Dienstleistung),
+                requirements?: string[] (Voraussetzungen),
+                coverage?: string[] (Leistungsumfang),
+                nextSteps?: string[] (Nächste Schritte),
+                relatedTopics?: string[] (Verwandte Themen),
+                deadlines?: string[] (Fristen),
+                contactPoints?: Array<{type: string, value: string, description?: string}>,
+                media?: {
+                  images?: Array<{url: string, alt?: string, caption?: string}>,
+                  videos?: Array<{url: string, title?: string, description?: string}>,
+                  files?: Array<{url: string, name: string, type: string}>,
+                  links?: Array<{url: string, title?: string, type?: string}>
+                },
+                interactive?: {
+                  forms?: Array<{id: string, type: string, fields: Array<{name: string, type: string, required: boolean}>}>,
+                  buttons?: Array<{text: string, action?: string, type?: string}>,
+                  calculators?: Array<{id: string, type: string, inputs: string[], outputs: string[]}>
+                }
+              }
+            }`
+          },
+          {
+            role: 'user',
+            content
           }
         ],
-        weight: 1.0,
-        metadata: {
-          domain: result.domain.main,
-          subDomain: result.domain.sub,
-          classification: result.classification,
-          relationships: result.relationships,
-          ...result.metadata,
-          aiModel: "gpt-4-turbo-preview",
-          timestamp: new Date().toISOString(),
-          detectionMethod: 'intelligent_classification'
-        },
-        suggestedMetadata: {
-          domain: result.domain.main,
-          subDomain: result.domain.sub,
-          classification: result.classification,
-          keywords: result.metadata.keywords,
-          requirements: result.metadata.requirements,
-          provider: result.metadata.provider,
-          coverage: result.metadata.coverage
-        }
-      };
+        response_format: { type: 'json_object' }
+      })
 
+      const messageContent = completion.choices[0]?.message?.content
+      if (!messageContent) {
+        throw new Error('Keine Antwort von OpenAI erhalten')
+      }
+
+      const result = JSON.parse(messageContent)
+      return result as AnalysisResult
     } catch (error) {
-      console.error('Fehler bei der intelligenten Analyse:', error);
-      return {
-        type: BaseContentTypes.DEFAULT,
-        confidence: 0,
-        patterns: [],
-        weight: 0,
-        metadata: {
-          domain: 'unknown',
-          subDomain: 'unknown',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date().toISOString(),
-          detectionMethod: 'fallback'
-        },
-        suggestedMetadata: {
-          domain: 'unknown',
-          subDomain: 'unknown',
-          classification: {
-            type: 'unknown',
-            purpose: 'fallback',
-            audience: 'general'
-          }
-        }
-      };
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+      this.logger.error('Fehler bei der OpenAI-Analyse:', new Error(errorMessage))
+      throw error
     }
   }
 
-  private determineContentType(result: any): BaseContentType {
-    // Kombiniere Domain und Classification für einen präzisen Content-Type
-    const domain = result.domain.main.toLowerCase();
-    const type = result.classification.type.toLowerCase();
-    
-    // Mappe den kombinierten Typ auf einen gültigen BaseContentType
-    switch (domain) {
-      case 'health':
-      case 'medical':
-      case 'healthcare':
-        return BaseContentTypes.SERVICE;
-      case 'insurance':
-        return BaseContentTypes.SERVICE;
-      case 'finance':
-      case 'financial':
-        return BaseContentTypes.SERVICE;
-      case 'education':
-      case 'learning':
-        return BaseContentTypes.ARTICLE;
-      case 'contact':
-      case 'support':
-        return BaseContentTypes.CONTACT;
-      case 'faq':
-      case 'help':
-        return BaseContentTypes.FAQ;
-      case 'download':
-      case 'document':
-        return BaseContentTypes.DOWNLOAD;
-      case 'video':
-      case 'media':
-        return BaseContentTypes.VIDEO;
-      case 'image':
-      case 'picture':
-        return BaseContentTypes.IMAGE;
-      default:
-        return BaseContentTypes.DEFAULT;
+  async detectSections(content: string): Promise<Section[]> {
+    const prompt = `Analysiere den folgenden Content und identifiziere die wichtigsten Themenbereiche. 
+WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.
+
+Antworte ausschließlich mit einem validen JSON-Array, wobei jeder Eintrag ein Objekt mit title und content ist.
+
+Content:
+${content}
+
+Format:
+{
+  "sections": [
+    {
+      "title": "Titel des Abschnitts",
+      "content": "Inhalt des Abschnitts"
+    }
+  ]
+}`
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'Du bist ein Experte für Content-Analyse und Strukturierung. Antworte ausschließlich mit einem validen JSON-Objekt. WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+
+    try {
+      const result = JSON.parse(response.choices[0].message.content || '{}')
+      return result.sections || []
+    } catch (error) {
+      throw new Error('Ungültiges JSON-Format in der Antwort')
+    }
+  }
+
+  async extractPatterns(content: string): Promise<Pattern[]> {
+    const prompt = `Analysiere den folgenden Content und extrahiere wiederkehrende Muster. 
+WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.
+
+Antworte ausschließlich mit einem validen JSON-Objekt.
+
+Content:
+${content}
+
+Format:
+{
+  "patterns": [
+    {
+      "title": "Name des Musters",
+      "description": "Beschreibung des Musters",
+      "regex": "Regulärer Ausdruck",
+      "confidence": 0.95
+    }
+  ]
+}`
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'Du bist ein Experte für Pattern Recognition und RegEx. Antworte ausschließlich mit einem validen JSON-Objekt. WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+
+    try {
+      const result = JSON.parse(response.choices[0].message.content || '{}')
+      return result.patterns || []
+    } catch (error) {
+      throw new Error('Ungültiges JSON-Format in der Antwort')
+    }
+  }
+
+  async extractFields(content: string): Promise<Field[]> {
+    const prompt = `Analysiere den folgenden Content und extrahiere mögliche Metadaten-Felder. 
+WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.
+
+Antworte ausschließlich mit einem validen JSON-Objekt.
+
+Content:
+${content}
+
+Format:
+{
+  "fields": [
+    {
+      "name": "Name des Feldes",
+      "type": "Feldtyp",
+      "required": true/false,
+      "description": "Beschreibung des Feldes"
+    }
+  ]
+}`
+
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'Du bist ein Experte für Metadaten-Extraktion und Datenmodellierung. Antworte ausschließlich mit einem validen JSON-Objekt. WICHTIG: Alle Antworten MÜSSEN auf Deutsch sein.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+
+    try {
+      const result = JSON.parse(response.choices[0].message.content || '{}')
+      return result.fields || []
+    } catch (error) {
+      throw new Error('Ungültiges JSON-Format in der Antwort')
     }
   }
 } 

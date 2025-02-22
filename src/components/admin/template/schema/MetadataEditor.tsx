@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MetadataDefinition } from '@/lib/types/template'
+import { MetadataDefinition, MetadataFieldType } from '@/lib/types/common'
 
 interface MetadataEditorProps {
   metadata: MetadataDefinition[]
@@ -25,19 +25,50 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     onChange(updatedMetadata)
   }
 
+  const getDefaultValueForType = (type: MetadataFieldType) => {
+    switch (type) {
+      case 'string':
+        return ''
+      case 'number':
+        return 0
+      case 'boolean':
+        return false
+      case 'array':
+        return []
+      case 'object':
+        return {}
+      case 'date':
+        return new Date()
+      default:
+        return ''
+    }
+  }
+
   const addMetadata = () => {
     onChange([
       ...metadata,
       {
         name: '',
-        type: 'string',
-        required: false
+        type: 'string' as MetadataFieldType,
+        required: false,
+        value: '',
+        description: ''
       }
     ])
   }
 
   const removeMetadata = (index: number) => {
     const updatedMetadata = metadata.filter((_, i) => i !== index)
+    onChange(updatedMetadata)
+  }
+
+  const handleTypeChange = (index: number, type: MetadataFieldType) => {
+    const updatedMetadata = [...metadata]
+    updatedMetadata[index] = {
+      ...updatedMetadata[index],
+      type,
+      value: getDefaultValueForType(type)
+    }
     onChange(updatedMetadata)
   }
 
@@ -70,7 +101,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
               <Label>Typ</Label>
               <Select
                 value={item.type}
-                onValueChange={(value) => handleMetadataChange(index, 'type', value)}
+                onValueChange={(value) => handleTypeChange(index, value as MetadataFieldType)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Typ auswählen" />
@@ -87,6 +118,52 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Wert</Label>
+              {item.type === 'boolean' ? (
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={item.value as boolean}
+                    onChange={(e) => handleMetadataChange(index, 'value', e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <Label>Aktiviert</Label>
+                </div>
+              ) : item.type === 'date' ? (
+                <Input
+                  type="date"
+                  value={item.value instanceof Date ? item.value.toISOString().split('T')[0] : ''}
+                  onChange={(e) => handleMetadataChange(index, 'value', new Date(e.target.value))}
+                />
+              ) : item.type === 'array' ? (
+                <Input
+                  value={Array.isArray(item.value) ? item.value.join(', ') : ''}
+                  onChange={(e) => handleMetadataChange(index, 'value', e.target.value.split(',').map(s => s.trim()))}
+                  placeholder="Komma-getrennte Werte"
+                />
+              ) : (
+                <Input
+                  type={item.type === 'number' ? 'number' : 'text'}
+                  value={item.value?.toString() || ''}
+                  onChange={(e) => handleMetadataChange(index, 'value', 
+                    item.type === 'number' ? parseFloat(e.target.value) : e.target.value
+                  )}
+                />
+              )}
+            </div>
+
+            <div>
+              <Label>Beschreibung (optional)</Label>
+              <Input
+                value={item.description || ''}
+                onChange={(e) => handleMetadataChange(index, 'description', e.target.value)}
+                placeholder="Beschreibung des Feldes"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -96,44 +173,6 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
             />
             <Label>Pflichtfeld</Label>
           </div>
-
-          {item.type === 'string' && (
-            <div>
-              <Label>Pattern (optional)</Label>
-              <Input
-                value={item.pattern || ''}
-                onChange={(e) => handleMetadataChange(index, 'pattern', e.target.value)}
-                placeholder="Regex Pattern"
-              />
-            </div>
-          )}
-
-          {(item.type === 'number' || item.type === 'date') && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Minimum</Label>
-                <Input
-                  type="number"
-                  value={item.validation?.min || ''}
-                  onChange={(e) => handleMetadataChange(index, 'validation', {
-                    ...item.validation,
-                    min: parseFloat(e.target.value)
-                  })}
-                />
-              </div>
-              <div>
-                <Label>Maximum</Label>
-                <Input
-                  type="number"
-                  value={item.validation?.max || ''}
-                  onChange={(e) => handleMetadataChange(index, 'validation', {
-                    ...item.validation,
-                    max: parseFloat(e.target.value)
-                  })}
-                />
-              </div>
-            </div>
-          )}
         </div>
       ))}
 

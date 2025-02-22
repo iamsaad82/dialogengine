@@ -25,6 +25,7 @@ export class ContentTypeRegistryFactory {
               name: 'title',
               pattern: '^.{3,100}$',
               required: true,
+              confidence: 0.9,
               examples: ['Produktbeschreibung', 'Serviceanleitung'],
               extractMetadata: ['title']
             },
@@ -32,6 +33,7 @@ export class ContentTypeRegistryFactory {
               name: 'content',
               pattern: '^[\\s\\S]{10,}$',
               required: true,
+              confidence: 0.8,
               examples: ['Detaillierte Beschreibung...', 'Hauptinhalt des Dokuments...']
             }
           ],
@@ -56,6 +58,7 @@ export class ContentTypeRegistryFactory {
               name: 'question',
               pattern: '^[^.!?]+[.!?]$',
               required: true,
+              confidence: 0.9,
               examples: ['Wie funktioniert das?', 'Was kostet der Service?'],
               extractMetadata: ['question']
             },
@@ -63,6 +66,7 @@ export class ContentTypeRegistryFactory {
               name: 'answer',
               pattern: '^[\\s\\S]{10,}$',
               required: true,
+              confidence: 0.8,
               examples: ['Die Funktionsweise...', 'Der Service kostet...']
             }
           ],
@@ -70,7 +74,7 @@ export class ContentTypeRegistryFactory {
         }
       },
 
-      // Service & Produkte
+      // Service
       {
         id: 'service',
         name: 'Service',
@@ -84,9 +88,17 @@ export class ContentTypeRegistryFactory {
           required: ['title', 'description', 'price'],
           patterns: [
             {
+              name: 'service_pattern',
+              pattern: 'type:service',
+              required: true,
+              confidence: 0.8,
+              examples: []
+            },
+            {
               name: 'title',
               pattern: '^.{3,100}$',
               required: true,
+              confidence: 0.9,
               examples: ['Beratung', 'Installation'],
               extractMetadata: ['title']
             },
@@ -94,6 +106,7 @@ export class ContentTypeRegistryFactory {
               name: 'price',
               pattern: '^\\d+(\\.\\d{2})?\\s*€?$',
               required: true,
+              confidence: 0.95,
               examples: ['99.99 €', '50.00'],
               extractMetadata: ['price']
             }
@@ -119,6 +132,7 @@ export class ContentTypeRegistryFactory {
               name: 'date',
               pattern: '^\\d{4}-\\d{2}-\\d{2}(\\s\\d{2}:\\d{2})?$',
               required: true,
+              confidence: 0.95,
               examples: ['2024-03-15', '2024-03-15 14:30'],
               extractMetadata: ['date']
             },
@@ -126,6 +140,7 @@ export class ContentTypeRegistryFactory {
               name: 'location',
               pattern: '^.{5,200}$',
               required: true,
+              confidence: 0.9,
               examples: ['Konferenzraum A, Hauptstraße 1, 12345 Stadt'],
               extractMetadata: ['location']
             }
@@ -151,6 +166,7 @@ export class ContentTypeRegistryFactory {
               name: 'steps',
               pattern: '^(\\d+\\.\\s.+\\n?)+$',
               required: true,
+              confidence: 0.9,
               examples: ['1. Schritt eins\n2. Schritt zwei'],
               extractMetadata: ['steps']
             }
@@ -176,6 +192,7 @@ export class ContentTypeRegistryFactory {
               name: 'type',
               pattern: '^(email|phone|address)$',
               required: true,
+              confidence: 0.95,
               examples: ['email', 'phone'],
               extractMetadata: ['contactType']
             },
@@ -183,6 +200,7 @@ export class ContentTypeRegistryFactory {
               name: 'value',
               pattern: '^.+$',
               required: true,
+              confidence: 0.8,
               examples: ['support@example.com', '+49 123 456789'],
               extractMetadata: ['contactValue']
             }
@@ -208,6 +226,7 @@ export class ContentTypeRegistryFactory {
               name: 'url',
               pattern: '^https?://.+',
               required: true,
+              confidence: 0.95,
               examples: ['https://example.com/download/file.pdf'],
               extractMetadata: ['url']
             },
@@ -215,6 +234,7 @@ export class ContentTypeRegistryFactory {
               name: 'fileType',
               pattern: '^\\.(pdf|doc|docx|xls|xlsx|zip)$',
               required: true,
+              confidence: 0.95,
               examples: ['.pdf'],
               extractMetadata: ['fileType']
             },
@@ -222,16 +242,69 @@ export class ContentTypeRegistryFactory {
               name: 'fileSize',
               pattern: '^\\d+(\\.\\d+)?\\s*(KB|MB|GB)$',
               required: false,
+              confidence: 0.9,
               examples: ['2.5 MB'],
               extractMetadata: ['fileSize']
             }
           ],
           rules: ['url_required', 'filetype_required']
         }
+      },
+
+      // Produkt
+      {
+        id: 'product',
+        name: 'Produkt',
+        description: 'Produkte und Waren',
+        type: BaseContentTypes.PRODUCT,
+        metadata: {
+          category: 'product',
+          version: '1.0'
+        },
+        validation: {
+          required: ['title', 'description', 'price'],
+          patterns: [
+            {
+              name: 'product_pattern',
+              pattern: 'type:product',
+              required: true,
+              confidence: 0.8,
+              examples: []
+            }
+          ],
+          rules: ['title_required', 'price_required']
+        }
+      },
+
+      // Artikel
+      {
+        id: 'article',
+        name: 'Artikel',
+        description: 'Artikel und Beiträge',
+        type: BaseContentTypes.ARTICLE,
+        metadata: {
+          category: 'article',
+          version: '1.0'
+        },
+        validation: {
+          required: ['title', 'content'],
+          patterns: [
+            {
+              name: 'article_pattern',
+              pattern: 'type:article',
+              required: true,
+              confidence: 0.8,
+              examples: []
+            }
+          ],
+          rules: ['title_required', 'content_required']
+        }
       }
     ]
 
+    // Registriere alle Standard-Types
     standardTypes.forEach(type => registry.register(type))
+
     return registry
   }
 } 

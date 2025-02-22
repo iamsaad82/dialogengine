@@ -123,7 +123,7 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
     try {
       console.log('🗑️ Lösche Handler:', handler)
       
-      const response = await fetch(`/api/templates/${templateId}/handlers?id=${handler.id}`, {
+      const response = await fetch(`/api/templates/${templateId}/handlers/${handler.id}`, {
         method: 'DELETE',
       })
       
@@ -132,6 +132,12 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
       console.log('✅ Handler gelöscht')
       
       setHandlers(prev => prev.filter(h => h.id !== handler.id))
+      
+      if (selectedHandler?.id === handler.id) {
+        setSelectedHandler(null)
+        setActiveTab('list')
+      }
+      
       toast({
         title: 'Handler gelöscht',
         description: 'Der Handler wurde erfolgreich gelöscht.'
@@ -176,6 +182,7 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
           <Card className="p-6">
             <HandlerList
               handlers={handlers}
+              templateId={templateId}
               onEdit={(handler) => {
                 setSelectedHandler(handler)
                 setActiveTab('edit')
@@ -199,8 +206,14 @@ export function HandlerManager({ templateId }: HandlerManagerProps) {
             <Card className="p-6">
               <HandlerEditor
                 handler={selectedHandler}
+                templateId={templateId}
                 onSave={handleUpdated}
                 onCancel={() => {
+                  setSelectedHandler(null)
+                  setActiveTab('list')
+                }}
+                onDelete={() => {
+                  handleDeleted(selectedHandler)
                   setSelectedHandler(null)
                   setActiveTab('list')
                 }}

@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutIcon, Bot, Paintbrush, Settings, BarChart, ListTree, FileJson } from "lucide-react"
+import { LayoutIcon, Bot, Paintbrush, Settings, BarChart, ListTree, FileJson, Rows } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
@@ -28,24 +28,29 @@ export default function Layout({ children, params }: LayoutProps) {
       icon: LayoutIcon
     },
     {
-      title: "Bot",
-      href: `/admin/templates/${params.id}/bot`,
-      icon: Bot
+      title: "Dokumente-Upload",
+      href: `/admin/templates/${params.id}/document-types`,
+      icon: FileJson
     },
     {
-      title: "Handler",
-      href: `/admin/templates/${params.id}/handlers`,
-      icon: FileJson
+      title: "Layouts",
+      href: `/admin/templates/${params.id}/layouts`,
+      icon: Rows
     },
     {
       title: "Schema",
       href: `/admin/templates/${params.id}/schema`,
-      icon: FileJson
+      icon: ListTree
     },
     {
-      title: "Inhaltstypen",
-      href: `/admin/templates/${params.id}/content-types`,
-      icon: ListTree
+      title: "Handler",
+      href: `/admin/templates/${params.id}/handlers`,
+      icon: Bot
+    },
+    {
+      title: "Bot",
+      href: `/admin/templates/${params.id}/bot`,
+      icon: Bot
     },
     {
       title: "Branding",
@@ -53,19 +58,9 @@ export default function Layout({ children, params }: LayoutProps) {
       icon: Paintbrush
     },
     {
-      title: "Meta",
-      href: `/admin/templates/${params.id}/meta`,
-      icon: Settings
-    },
-    {
       title: "Analytics",
       href: `/admin/templates/${params.id}/analytics`,
       icon: BarChart
-    },
-    {
-      title: "Dokumente",
-      href: `/admin/templates/${params.id}/documents`,
-      icon: FileJson
     }
   ]
 

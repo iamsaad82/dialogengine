@@ -15,6 +15,9 @@ import { ContentTypeEditor } from './ContentTypeEditor'
 import { VectorManager } from './VectorManager'
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
+import { DocumentTypeEditor } from '../document/DocumentTypeEditor'
+import { DocumentTypeList } from '../document/DocumentTypeList'
+import type { DocumentTypeDefinition } from '@/lib/types/documentTypes'
 
 interface DocumentUploadProps {
   templateId: string
@@ -46,9 +49,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   onUploadComplete
 }) => {
   const [uploads, setUploads] = useState<UploadProgress[]>([])
-  const [contentTypes, setContentTypes] = useState<ContentTypeResult[]>([])
-  const [selectedType, setSelectedType] = useState<ContentType>('text')
-  const [typeMetadata, setTypeMetadata] = useState<Record<string, any>>({})
+  const [documentTypes, setDocumentTypes] = useState<DocumentTypeDefinition[]>([])
+  const [selectedType, setSelectedType] = useState<DocumentTypeDefinition | null>(null)
+  const [vectorTypes, setVectorTypes] = useState<ContentTypeResult[]>([])
   const pollingRef = useRef<{[key: string]: NodeJS.Timeout}>({})
 
   // Cleanup bei Unmount
@@ -140,7 +143,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             confidence: type.confidence,
             metadata: {}
           }))
-          setContentTypes(prev => [...prev, ...newTypes])
+          setDocumentTypes(prev => [...prev, ...newTypes])
         }
       }
     } catch (error) {
@@ -223,9 +226,89 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setUploads(prev => prev.filter(upload => upload.fileName !== fileName))
   }
 
-  const handleContentTypesUpdate = (updatedTypes: ContentTypeResult[]) => {
-    setContentTypes(updatedTypes)
+  const handleUpdated = async (type: DocumentTypeDefinition) => {
+    try {
+      const response = await fetch(`/api/templates/${templateId}/document-types/${type.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(type)
+      })
+      
+      if (!response.ok) throw new Error('Fehler beim Aktualisieren')
+      
+      const updatedType = await response.json()
+      setDocumentTypes(prev => prev.map(t => t.id === updatedType.id ? updatedType : t))
+      setSelectedType(null)
+      
+      toast({
+        title: 'Dokumententyp aktualisiert',
+        description: 'Die Änderungen wurden erfolgreich gespeichert.'
+      })
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren des Dokumententyps:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Die Änderungen konnten nicht gespeichert werden.'
+      })
+    }
   }
+
+  const handleDeleted = async (type: DocumentTypeDefinition) => {
+    try {
+      const response = await fetch(`/api/templates/${templateId}/document-types/${type.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) throw new Error('Fehler beim Löschen')
+      
+      setDocumentTypes(prev => prev.filter(t => t.id !== type.id))
+      setSelectedType(null)
+      
+      toast({
+        title: 'Dokumententyp gelöscht',
+        description: 'Der Dokumententyp wurde erfolgreich gelöscht.'
+      })
+    } catch (error) {
+      console.error('Fehler beim Löschen des Dokumententyps:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Der Dokumententyp konnte nicht gelöscht werden.'
+      })
+    }
+  }
+
+  // Konvertiere DocumentTypeDefinition zu ContentTypeResult für den VectorManager
+  const getVectorTypes = (types: DocumentTypeDefinition[]): ContentTypeResult[] => {
+    return types.map(type => ({
+      type: type.type,
+      confidence: type.metadata.confidence || 1,
+      metadata: type.metadata
+    }))
+  }
+
+  // Aktualisiere vectorTypes wenn sich documentTypes ändert
+  useEffect(() => {
+    setVectorTypes(getVectorTypes(documentTypes))
+  }, [documentTypes])
+
+  // Lade die Dokumententypen beim Start
+  useEffect(() => {
+    const loadDocumentTypes = async () => {
+      try {
+        const response = await fetch(`/api/templates/${templateId}/document-types`)
+        if (!response.ok) throw new Error('Fehler beim Laden der Dokumententypen')
+        const data = await response.json()
+        setDocumentTypes(data)
+      } catch (error) {
+        console.error('Fehler beim Laden der Dokumententypen:', error)
+        toast({
+          title: 'Fehler',
+          description: 'Die Dokumententypen konnten nicht geladen werden.'
+        })
+      }
+    }
+    loadDocumentTypes()
+  }, [templateId])
 
   return (
     <div className="space-y-6">
@@ -259,79 +342,38 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               </p>
             </div>
 
-            {uploads.length > 0 && (
-              <div className="space-y-2 mt-4">
-                {uploads.map((upload, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <File className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium">{upload.fileName}</p>
-                          <div className="flex items-center space-x-2">
-                            <Badge
-                              variant={
-                                upload.status === 'complete' ? 'default' :
-                                upload.status === 'error' ? 'destructive' :
-                                'secondary'
-                              }
-                            >
-                              {upload.status === 'uploading' && 'Wird hochgeladen...'}
-                              {upload.status === 'processing' && 'Wird verarbeitet...'}
-                              {upload.status === 'complete' && 'Abgeschlossen'}
-                              {upload.status === 'error' && 'Fehler'}
-                            </Badge>
-                            {upload.error && (
-                              <span className="text-xs text-red-500">{upload.error}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {upload.status === 'uploading' && (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeUpload(upload.fileName)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    {(upload.status === 'uploading' || upload.status === 'processing') && (
-                      <div className="mt-2">
-                        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${upload.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
+            <div className="space-y-4 mt-4">
+              {uploads.map((upload) => (
+                <div key={upload.fileName} className="relative">
+                  <UploadStatus upload={upload} />
+                </div>
+              ))}
+            </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="types">
           <Card className="p-6">
-            <h3 className="text-lg font-medium mb-4">Erkannte Dokumententypen</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Hier sehen Sie die automatisch erkannten Dokumententypen und deren Klassifizierung für die Wissensbasis.
-            </p>
-            <ContentTypeEditor
-              templateId={templateId}
-              contentTypes={contentTypes}
-              onUpdate={handleContentTypesUpdate}
-              type={selectedType}
-              onChange={setSelectedType}
-              metadata={typeMetadata}
-              onMetadataChange={setTypeMetadata}
-            />
+            {selectedType ? (
+              <DocumentTypeEditor
+                documentType={selectedType}
+                onSave={handleUpdated}
+                onCancel={() => setSelectedType(null)}
+                onDelete={() => handleDeleted(selectedType)}
+              />
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Dokumententypen</h3>
+                <p className="text-sm text-muted-foreground">
+                  Verwalten Sie hier die erkannten und definierten Dokumententypen.
+                </p>
+                <DocumentTypeList
+                  documentTypes={documentTypes}
+                  onEdit={setSelectedType}
+                  onDelete={handleDeleted}
+                />
+              </div>
+            )}
           </Card>
         </TabsContent>
 
@@ -343,19 +385,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </p>
             <VectorManager
               templateId={templateId}
-              contentTypes={contentTypes}
+              contentTypes={vectorTypes}
             />
           </Card>
         </TabsContent>
       </Tabs>
-
-      <div className="space-y-4">
-        {uploads.map((upload) => (
-          <div key={upload.fileName} className="relative">
-            <UploadStatus upload={upload} />
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

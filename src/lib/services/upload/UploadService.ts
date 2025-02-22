@@ -255,7 +255,7 @@ export class UploadService {
       'Bildung': BaseContentTypes.SERVICE,
       'Finanzen': BaseContentTypes.SERVICE,
       'Produkte': BaseContentTypes.PRODUCT,
-      'Events': BaseContentTypes.EVENT,
+      'Veranstaltungen': BaseContentTypes.EVENT,
       'default': BaseContentTypes.SERVICE
     };
     

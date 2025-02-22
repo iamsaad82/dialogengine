@@ -10,20 +10,24 @@ import { HandlerConfig } from "@/lib/types/template"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Info } from "lucide-react"
+import { Info, Trash2 } from "lucide-react"
 import { useHandlerTypes } from "@/lib/hooks/useHandlerTypes"
+import { toast } from 'sonner'
 
 interface HandlerEditorProps {
   handler: HandlerConfig
   onSave: (handler: HandlerConfig) => void
   onCancel: () => void
+  onDelete?: () => void
+  templateId: string
 }
 
-export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps) {
+export function HandlerEditor({ handler, onSave, onCancel, onDelete, templateId }: HandlerEditorProps) {
   const [editedHandler, setEditedHandler] = useState<HandlerConfig>({
     ...handler,
     capabilities: Array.isArray(handler.capabilities) ? handler.capabilities : []
   })
+  const [isDeleting, setIsDeleting] = useState(false)
   
   const { data, isLoading, error } = useHandlerTypes()
   const types = data?.types || []
@@ -46,6 +50,29 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
         }
       }
     }))
+  }
+
+  const handleDelete = async () => {
+    if (!handler.id || !templateId) return
+    
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/templates/${templateId}/handlers/${handler.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Löschen des Handlers')
+      }
+
+      toast.success('Handler erfolgreich gelöscht')
+      onDelete?.()
+    } catch (error) {
+      console.error('Fehler beim Löschen:', error)
+      toast.error('Fehler beim Löschen des Handlers')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // Gruppiere Capabilities nach Typ
@@ -229,13 +256,24 @@ export function HandlerEditor({ handler, onSave, onCancel }: HandlerEditorProps)
         </div>
       )}
 
-      <div className="flex justify-end gap-4">
-        <Button variant="outline" onClick={onCancel}>
-          Abbrechen
+      <div className="flex justify-between gap-4">
+        <Button 
+          variant="destructive" 
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
         </Button>
-        <Button onClick={() => onSave(editedHandler)}>
-          Speichern
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={onCancel}>
+            Abbrechen
+          </Button>
+          <Button onClick={() => onSave(editedHandler)}>
+            Speichern
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -1,239 +1,272 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Plus, Save } from "lucide-react"
-import type { DocumentPattern, MetadataDefinition } from '@/lib/types/template'
-import type { ExtractionSchema, SchemaDefinition } from '@/lib/types/schema'
-import { PatternEditor } from './PatternEditor'
-import { MetadataEditor } from './MetadataEditor'
-import { ResponseTypeEditor } from './ResponseTypeEditor'
-import type { ContentType, BaseContentType, ResponseType } from '@/lib/types/contentTypes'
-import type { ResponseContentType } from '@/lib/types/contentTypes'
-import type { MetadataDefinition as CommonMetadataDefinition, ResponseType as CommonResponseType } from '@/lib/types/common'
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Trash2 } from "lucide-react"
+import type { ExtractionSchema } from '@/lib/types/schema'
+import type { DocumentPattern, MetadataDefinition, MetadataFieldType } from '@/lib/types/common'
 
 interface SchemaEditorProps {
-  templateId: string
   schema: ExtractionSchema
-  onUpdate: (schema: ExtractionSchema) => void
+  onSave: (schema: ExtractionSchema) => void
+  onCancel: () => void
+  onDelete?: () => void
 }
 
-export function SchemaEditor({ templateId, schema: initialSchema, onUpdate }: SchemaEditorProps) {
-  const [activeTab, setActiveTab] = useState('patterns')
-  const [schema, setSchema] = useState<ExtractionSchema>(initialSchema)
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const { toast } = useToast()
+const getFieldTypeLabel = (type: MetadataFieldType): string => {
+  const typeMap: Record<MetadataFieldType, string> = {
+    'string': 'Text',
+    'number': 'Zahl',
+    'boolean': 'Ja/Nein',
+    'array': 'Liste',
+    'object': 'Objekt',
+    'date': 'Datum'
+  }
+  return typeMap[type] || type
+}
 
-  useEffect(() => {
-    setSchema(initialSchema)
-  }, [initialSchema])
+const getExtractedTypeLabel = (type: string): string => {
+  const typeMap: Record<string, string> = {
+    'Health and Fitness Information': 'Gesundheits- und Fitness-Informationen',
+    'Numeric Information': 'Numerische Informationen',
+    'Organization Name': 'Organisationsname',
+    'Image Caption and URL': 'Bildunterschrift und URL',
+    'Informative Article': 'Informationsartikel',
+    'Service Description': 'Servicebeschreibung',
+    'AOK Branch Listing': 'AOK-Filialauflistung',
+    'AOK Branches': 'AOK-Filialen',
+    'Telephone numbers': 'Telefonnummern',
+    'Date format': 'Datumsformat',
+    'URL format': 'URL-Format',
+    'Email format': 'E-Mail-Format',
+    'List form': 'Listenform',
+    'Hyperlinks': 'Hyperlinks',
+    'Dates': 'Datumsangaben',
+    'Image links': 'Bildlinks',
+    'Sections with double headlines': 'Abschnitte mit Doppelüberschriften'
+  }
+  return typeMap[type] || type
+}
 
-  const handleSave = async () => {
-    if (!schema) return
+export function SchemaEditor({ schema, onSave, onCancel, onDelete }: SchemaEditorProps) {
+  const [editedSchema, setEditedSchema] = useState<ExtractionSchema>(schema)
+  const [isDeleting, setIsDeleting] = useState(false)
 
+  const handleChange = (field: keyof ExtractionSchema, value: any) => {
+    setEditedSchema(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handlePatternChange = (index: number, field: keyof DocumentPattern, value: any) => {
+    setEditedSchema(prev => ({
+      ...prev,
+      fields: {
+        ...prev.fields,
+        patterns: prev.fields.patterns.map((pattern, i) => 
+          i === index ? { ...pattern, [field]: value } : pattern
+        )
+      }
+    }))
+  }
+
+  const handleMetadataFieldChange = (index: number, field: keyof MetadataDefinition, value: any) => {
+    setEditedSchema(prev => ({
+      ...prev,
+      fields: {
+        ...prev.fields,
+        metadata: prev.fields.metadata.map((meta, i) => 
+          i === index ? { ...meta, [field]: value } : meta
+        )
+      }
+    }))
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    
     try {
-      setSaving(true)
-      onUpdate(schema)
+      setIsDeleting(true)
+      onDelete()
     } catch (error) {
-      console.error('Fehler beim Speichern:', error)
-      toast({
-        title: 'Fehler',
-        description: 'Das Schema konnte nicht gespeichert werden.'
-      })
+      console.error('Fehler beim Löschen:', error)
     } finally {
-      setSaving(false)
+      setIsDeleting(false)
     }
-  }
-
-  const handlePatternsChange = (patterns: Array<{
-    name: string
-    pattern: string
-    required: boolean
-    examples: string[]
-  }>) => {
-    onUpdate({
-      ...schema,
-      fields: {
-        ...schema.fields,
-        patterns
-      }
-    })
-  }
-
-  const handleMetadataChange = (metadata: MetadataDefinition[]) => {
-    onUpdate({
-      ...schema,
-      fields: {
-        ...schema.fields,
-        metadata
-      }
-    })
-  }
-
-  const handleResponseTypesChange = (responseTypes: Array<{
-    type: ContentType
-    schema: SchemaDefinition
-    templates: string[]
-  }>) => {
-    onUpdate({
-      ...schema,
-      fields: {
-        ...schema.fields,
-        responseTypes
-      }
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!schema) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-muted-foreground">Kein Schema gefunden</p>
-      </div>
-    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <Label>Name des Schemas</Label>
-          <Input
-            value={schema.name || ''}
-            onChange={(e) => setSchema({ ...schema, name: e.target.value })}
-            className="max-w-md"
-            placeholder="z.B. Versicherungsanträge, Rechnungen, etc."
-          />
-        </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Wird gespeichert...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Speichern
-            </>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Schema-Informationen</h3>
+          {editedSchema.metadata?.generated && (
+            <Badge variant="secondary">Automatisch generiert</Badge>
           )}
-        </Button>
+        </div>
+        
+        <Card className="p-4 space-y-4">
+          <div>
+            <Label>Name</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Der Name des Schemas für die interne Verwendung
+            </p>
+            <Input
+              value={editedSchema.name}
+              onChange={(e) => handleChange('name', e.target.value)}
+              placeholder="z.B. Produkt-Schema, Service-Schema"
+            />
+          </div>
+
+          <div>
+            <Label>Beschreibung</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Eine kurze Beschreibung des Schemas und seiner Verwendung
+            </p>
+            <Textarea
+              value={editedSchema.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="Beschreiben Sie den Zweck und die Verwendung dieses Schemas..."
+            />
+          </div>
+        </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="patterns" className="flex items-center gap-2">
-            <span>1.</span> Dokumenterkennung
-          </TabsTrigger>
-          <TabsTrigger value="metadata" className="flex items-center gap-2">
-            <span>2.</span> Informationsextraktion
-          </TabsTrigger>
-          <TabsTrigger value="responses" className="flex items-center gap-2">
-            <span>3.</span> Antwortformate
-          </TabsTrigger>
-        </TabsList>
+      {/* Erkennungsmuster */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Erkennungsmuster</h3>
+        <Card className="p-4">
+          <div className="space-y-4">
+            {editedSchema.fields.patterns.map((pattern, index) => (
+              <div key={index} className="space-y-2 pb-4 border-b last:border-0">
+                <div className="flex items-center justify-between">
+                  <Input
+                    value={pattern.name}
+                    onChange={(e) => handlePatternChange(index, 'name', e.target.value)}
+                    placeholder="Name des Musters"
+                    className="max-w-[200px]"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Erforderlich</Label>
+                    <Switch
+                      checked={pattern.required}
+                      onCheckedChange={(checked) => handlePatternChange(index, 'required', checked)}
+                    />
+                  </div>
+                </div>
 
-        <div className="mt-2 text-sm text-muted-foreground">
-          {activeTab === 'patterns' && (
-            "Definieren Sie, welche Arten von Dokumenten erkannt werden sollen."
-          )}
-          {activeTab === 'metadata' && (
-            "Legen Sie fest, welche Informationen aus den Dokumenten extrahiert werden sollen."
-          )}
-          {activeTab === 'responses' && (
-            "Bestimmen Sie, wie die extrahierten Informationen dargestellt werden sollen."
-          )}
+                <div>
+                  <Input
+                    value={pattern.pattern}
+                    onChange={(e) => handlePatternChange(index, 'pattern', e.target.value)}
+                    placeholder="Regulärer Ausdruck oder Muster"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Confidence: {Math.round(pattern.confidence * 100)}%
+                  </p>
+                </div>
+
+                {pattern.examples?.length > 0 && (
+                  <div className="mt-2">
+                    <Label className="text-sm">Beispiele aus dem Dokument</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {pattern.examples.map((example, i) => (
+                        <Badge key={i} variant="outline">{example}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Metadaten-Felder */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Metadaten-Felder</h3>
+        <Card className="p-4">
+          <div className="space-y-4">
+            {editedSchema.fields.metadata.map((field, index) => (
+              <div key={index} className="space-y-2 pb-4 border-b last:border-0">
+                <div className="flex items-center justify-between">
+                  <Input
+                    value={field.name}
+                    onChange={(e) => handleMetadataFieldChange(index, 'name', e.target.value)}
+                    placeholder="Name des Feldes"
+                    className="max-w-[200px]"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Erforderlich</Label>
+                    <Switch
+                      checked={field.required}
+                      onCheckedChange={(checked) => handleMetadataFieldChange(index, 'required', checked)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Input
+                    value={field.description || ''}
+                    onChange={(e) => handleMetadataFieldChange(index, 'description', e.target.value)}
+                    placeholder="Beschreibung des Feldes"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Typ: {getFieldTypeLabel(field.type)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {editedSchema.metadata?.extractedTypes && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Erkannte Inhaltstypen</h3>
+          <Card className="p-4">
+            <div className="flex flex-wrap gap-2">
+              {editedSchema.metadata.extractedTypes.map((type, index) => (
+                <Badge 
+                  key={index} 
+                  variant="secondary"
+                  className="text-sm flex items-center gap-1"
+                >
+                  {getExtractedTypeLabel(type.type)}
+                  <span className="opacity-60">
+                    {Math.round(type.confidence * 100)}% Übereinstimmung
+                  </span>
+                </Badge>
+              ))}
+            </div>
+          </Card>
         </div>
+      )}
 
-        <TabsContent value="patterns" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Dokumenterkennung</CardTitle>
-              <CardDescription>
-                Definieren Sie Muster zur Erkennung von Dokumenttypen und deren Inhalten.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PatternEditor
-                patterns={schema.fields.patterns}
-                onChange={handlePatternsChange}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="metadata" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informationsextraktion</CardTitle>
-              <CardDescription>
-                Legen Sie fest, welche Informationen aus den erkannten Dokumenten extrahiert werden sollen.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MetadataEditor
-                metadata={schema.fields.metadata}
-                onChange={handleMetadataChange}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="responses" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Antwortformate</CardTitle>
-              <CardDescription>
-                Definieren Sie die Struktur der verschiedenen Antworttypen.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponseTypeEditor
-                responseTypes={schema.fields.responseTypes}
-                onChange={handleResponseTypesChange}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <div className="mt-6 p-4 bg-muted rounded-lg">
-        <h3 className="font-medium mb-2">Hilfe & Tipps</h3>
-        <div className="text-sm text-muted-foreground space-y-2">
-          {activeTab === 'patterns' && (
-            <>
-              <p>• Geben Sie aussagekräftige Namen für Ihre Dokumentmuster</p>
-              <p>• Fügen Sie Beispiele hinzu, um die Erkennung zu verbessern</p>
-              <p>• Markieren Sie wichtige Muster als "Erforderlich"</p>
-            </>
-          )}
-          {activeTab === 'metadata' && (
-            <>
-              <p>• Wählen Sie passende Feldtypen für die zu extrahierenden Informationen</p>
-              <p>• Nutzen Sie die Beschreibungen, um die Extraktion zu präzisieren</p>
-              <p>• Geben Sie Beispielwerte an, um die Qualität zu verbessern</p>
-            </>
-          )}
-          {activeTab === 'responses' && (
-            <>
-              <p>• Wählen Sie geeignete Antwortformate für Ihre Inhalte</p>
-              <p>• Nutzen Sie Vorlagen mit Variablen wie {'{feldname}'}</p>
-              <p>• Prüfen Sie die Vorschau für optimale Darstellung</p>
-            </>
-          )}
+      <div className="flex justify-between gap-4">
+        <Button 
+          variant="destructive" 
+          onClick={handleDelete}
+          disabled={isDeleting || !onDelete}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={onCancel}>
+            Abbrechen
+          </Button>
+          <Button onClick={() => onSave(editedSchema)}>
+            Speichern
+          </Button>
         </div>
       </div>
     </div>

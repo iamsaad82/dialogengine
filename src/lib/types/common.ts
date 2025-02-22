@@ -1,29 +1,23 @@
 import { BaseContentType, ResponseContentTypes } from './contentTypes'
 
 // Gemeinsame Basis-Typen für das gesamte System
-export type MetadataFieldType = 'string' | 'number' | 'boolean' | 'object' | 'date' | 'string[]'
+export type MetadataFieldType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'date'
 
 export interface MetadataDefinition {
   name: string
   type: MetadataFieldType
   required: boolean
-  pattern?: string
-  defaultValue?: any
-  validation?: {
-    min?: number
-    max?: number
-    regex?: string
-    options?: string[]
-  }
+  value: string | number | boolean | string[] | object | Date
+  description?: string
 }
 
 export interface DocumentPattern {
   name: string
   pattern: string
   required: boolean
+  confidence: number
   examples: string[]
   extractMetadata?: string[]
-  matches?: string[]
 }
 
 export interface DocumentMetadata {

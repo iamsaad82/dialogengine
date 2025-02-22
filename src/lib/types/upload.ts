@@ -1,3 +1,5 @@
+export * from './upload/index'
+
 export interface UploadStatusDetails {
   currentOperation?: string
   detectedTypes?: Array<{

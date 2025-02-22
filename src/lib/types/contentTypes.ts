@@ -2,41 +2,41 @@ import { DocumentPattern, MetadataDefinition } from './common'
 
 // Basis Content Types für interne Verarbeitung
 export const BaseContentTypes = {
-  DEFAULT: 'default',
-  SERVICE: 'service',
-  PRODUCT: 'product',
-  ARTICLE: 'article',
+  DEFAULT: 'standard',
+  SERVICE: 'dienstleistung',
+  PRODUCT: 'produkt',
+  ARTICLE: 'artikel',
   FAQ: 'faq',
-  CONTACT: 'contact',
-  EVENT: 'event',
+  CONTACT: 'kontakt',
+  EVENT: 'veranstaltung',
   DOWNLOAD: 'download',
   VIDEO: 'video',
-  IMAGE: 'image',
-  FORM: 'form',
-  PROFILE: 'profile',
-  LOCATION: 'location',
+  IMAGE: 'bild',
+  FORM: 'formular',
+  PROFILE: 'profil',
+  LOCATION: 'standort',
   TEXT: 'text',
-  TUTORIAL: 'tutorial',
-  DOCUMENT: 'document'
+  TUTORIAL: 'anleitung',
+  DOCUMENT: 'dokument'
 } as const
 
 // Response Types für die Ausgabe
 export enum ResponseContentTypes {
   TEXT = 'text',
-  LIST = 'list',
-  TABLE = 'table',
-  CARD = 'card',
+  LIST = 'liste',
+  TABLE = 'tabelle',
+  CARD = 'karte',
   LINK = 'link',
   DOWNLOAD = 'download',
-  IMAGE = 'image',
+  IMAGE = 'bild',
   VIDEO = 'video',
-  CUSTOM = 'custom',
-  WARNING = 'warning',
-  SUCCESS = 'success',
-  STRUCTURED = 'structured',
-  MEDIA = 'media',
-  INTERACTIVE = 'interactive',
-  COMPOSITE = 'composite'
+  CUSTOM = 'benutzerdefiniert',
+  WARNING = 'warnung',
+  SUCCESS = 'erfolg',
+  STRUCTURED = 'strukturiert',
+  MEDIA = 'medien',
+  INTERACTIVE = 'interaktiv',
+  COMPOSITE = 'zusammengesetzt'
 }
 
 // Type definitions
@@ -97,6 +97,7 @@ export interface ContentTypeDefinition {
     required: string[]
     rules: string[]
   }
+  templateId?: string  // Referenz zum Template
 }
 
 export interface ContentTypeConfig {

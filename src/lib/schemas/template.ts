@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { SchemaField, SchemaFieldType } from '@/lib/types/schema'
 
 // Basic types
 export const iconTypeSchema = z.enum(['zap', 'clock', 'brain', 'blocks'])
@@ -315,24 +316,10 @@ export const schemaFieldTypeSchema = z.enum([
   'date',
   'array',
   'object'
-])
+]) satisfies z.ZodType<SchemaFieldType>
 
-type SchemaFieldType = z.infer<typeof schemaFieldTypeSchema>
-
-export type SchemaField = {
-  name: string
-  type: SchemaFieldType
-  description?: string
-  required?: boolean
-  isArray?: boolean
-  properties?: SchemaField[]
-  validation?: {
-    min?: number
-    max?: number
-    pattern?: string
-    enum?: string[]
-  }
-}
+// Schema-Definitionen wurden in @/lib/types/schema verschoben
+export type { SchemaField, SchemaDefinition, SchemaValidationResult } from '@/lib/types/schema'
 
 export const schemaFieldSchema: z.ZodType<SchemaField> = z.lazy(() => z.object({
   name: z.string(),
@@ -347,7 +334,7 @@ export const schemaFieldSchema: z.ZodType<SchemaField> = z.lazy(() => z.object({
     pattern: z.string().optional(),
     enum: z.array(z.string()).optional()
   }).optional()
-}).strict());
+}).strict())
 
 export interface Handler {
   type: string

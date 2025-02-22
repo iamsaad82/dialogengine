@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Loader2 } from 'lucide-react'
 import { Template } from '@/lib/types/template'
+import { Textarea } from '@/components/ui/textarea'
 
 interface SettingsEditorProps {
   templateId: string
@@ -180,6 +181,73 @@ export function SettingsEditor({ templateId }: SettingsEditorProps) {
             }}
           />
           <Label>Template aktiv</Label>
+        </div>
+
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-medium mb-4">Landing Page Metadaten</h3>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="meta-title">Seitentitel</Label>
+              <Input
+                id="meta-title"
+                value={template.meta?.title || ''}
+                onChange={(e) => {
+                  setTemplate({
+                    ...template,
+                    meta: {
+                      ...template.meta,
+                      title: e.target.value
+                    }
+                  })
+                  setHasUnsavedChanges(true)
+                }}
+                placeholder="Titel der Landing Page"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meta-description">Beschreibung</Label>
+              <Textarea
+                id="meta-description"
+                value={template.meta?.description || ''}
+                onChange={(e) => {
+                  setTemplate({
+                    ...template,
+                    meta: {
+                      ...template.meta,
+                      description: e.target.value
+                    }
+                  })
+                  setHasUnsavedChanges(true)
+                }}
+                placeholder="Kurze Beschreibung der Landing Page"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meta-keywords">Keywords</Label>
+              <Input
+                id="meta-keywords"
+                value={template.meta?.keywords?.join(', ') || ''}
+                onChange={(e) => {
+                  setTemplate({
+                    ...template,
+                    meta: {
+                      ...template.meta,
+                      keywords: e.target.value.split(',').map(k => k.trim()).filter(k => k)
+                    }
+                  })
+                  setHasUnsavedChanges(true)
+                }}
+                placeholder="Komma-getrennte Keywords"
+              />
+              <p className="text-sm text-muted-foreground">
+                Geben Sie Keywords durch Kommas getrennt ein
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

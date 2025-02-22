@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { BaseContentTypes } from '@/lib/types/contentTypes'
 
 type PrismaHandler = Prisma.JsonObject & {
   type: string
@@ -26,7 +27,7 @@ export async function GET() {
       }
     })
 
-    // Extrahiere und gruppiere die Handler-Typen
+    // Erstelle eine Map für alle verfügbaren Handler-Typen
     const handlerTypes = new Map<string, {
       id: string
       label: string
@@ -39,7 +40,22 @@ export async function GET() {
       count: number
     }>()
 
-    // Sammle alle Handler-Typen
+    // Füge zuerst alle Basis-Content-Types hinzu
+    Object.entries(BaseContentTypes).forEach(([key, value]) => {
+      handlerTypes.set(value, {
+        id: value,
+        label: getHandlerLabel(value),
+        description: getHandlerDescription(value),
+        metadata: {
+          icon: getHandlerIcon(value),
+          category: getHandlerCategory(value),
+          capabilities: []
+        },
+        count: 0
+      })
+    })
+
+    // Sammle dann alle Handler-Typen aus den Templates
     templates.forEach(template => {
       const handlers = template.handlers as PrismaHandler[]
       if (!Array.isArray(handlers)) return
@@ -47,7 +63,7 @@ export async function GET() {
       handlers.forEach(handler => {
         if (!handler.type) return
 
-        const type = handler.type
+        const type = handler.type.toLowerCase()
         const existing = handlerTypes.get(type)
 
         if (existing) {
@@ -55,10 +71,10 @@ export async function GET() {
           // Füge neue Capabilities hinzu
           if (handler.metadata?.capabilities) {
             existing.metadata = existing.metadata || {}
-            existing.metadata.capabilities = [
+            existing.metadata.capabilities = Array.from(new Set([
               ...(existing.metadata.capabilities || []),
               ...handler.metadata.capabilities
-            ]
+            ]))
           }
         } else {
           handlerTypes.set(type, {
@@ -79,9 +95,9 @@ export async function GET() {
     // Konvertiere die Map in ein Array und sortiere nach Häufigkeit
     const sortedTypes = Array.from(handlerTypes.values())
       .sort((a, b) => b.count - a.count)
-      .map(({ count, ...type }) => type) // Entferne count aus der Ausgabe
+      .map(({ count, ...type }) => type)
 
-    return NextResponse.json(sortedTypes)
+    return NextResponse.json({ types: sortedTypes })
   } catch (error) {
     console.error('Fehler beim Laden der Handler-Typen:', error)
     return NextResponse.json(
@@ -94,44 +110,88 @@ export async function GET() {
 // Hilfsfunktionen für die Anzeige
 function getHandlerLabel(type: string): string {
   const typeMap: Record<string, string> = {
-    'medical': 'Medizinischer Handler',
-    'insurance': 'Versicherungs-Handler',
-    'city-administration': 'Verwaltungs-Handler',
-    'shopping-center': 'Shopping-Handler',
-    'default': 'Standard-Handler'
+    'default': 'Standard-Handler',
+    'service': 'Service-Handler',
+    'product': 'Produkt-Handler',
+    'article': 'Artikel-Handler',
+    'faq': 'FAQ-Handler',
+    'contact': 'Kontakt-Handler',
+    'event': 'Event-Handler',
+    'download': 'Download-Handler',
+    'video': 'Video-Handler',
+    'image': 'Bild-Handler',
+    'form': 'Formular-Handler',
+    'profile': 'Profil-Handler',
+    'location': 'Standort-Handler',
+    'text': 'Text-Handler',
+    'tutorial': 'Tutorial-Handler',
+    'document': 'Dokument-Handler'
   }
-  return typeMap[type] || type
+  return typeMap[type.toLowerCase()] || type
 }
 
 function getHandlerDescription(type: string): string {
   const descriptionMap: Record<string, string> = {
-    'medical': 'Spezialisiert auf medizinische Anfragen und Gesundheitsinformationen',
-    'insurance': 'Verarbeitet Versicherungsanfragen und -informationen',
-    'city-administration': 'Unterstützt bei Verwaltungsanfragen und Bürgerdiensten',
-    'shopping-center': 'Hilft bei Shopping- und Produktanfragen',
-    'default': 'Allgemeiner Handler für verschiedene Anfragen'
+    'default': 'Standard-Handler für allgemeine Inhalte',
+    'service': 'Verarbeitet Service- und Dienstleistungsinformationen',
+    'product': 'Spezialisiert auf Produktinformationen und -kataloge',
+    'article': 'Verarbeitet Artikel und redaktionelle Inhalte',
+    'faq': 'Verwaltet häufig gestellte Fragen und Antworten',
+    'contact': 'Verarbeitet Kontakt- und Ansprechpartnerinformationen',
+    'event': 'Spezialisiert auf Veranstaltungen und Termine',
+    'download': 'Verwaltet Download-Ressourcen und Dokumente',
+    'video': 'Verarbeitet Video-Inhalte und Multimedia',
+    'image': 'Spezialisiert auf Bilder und Grafiken',
+    'form': 'Verwaltet Formulare und Eingabemasken',
+    'profile': 'Verarbeitet Profil- und Personendaten',
+    'location': 'Spezialisiert auf Standort- und Ortsinformationen',
+    'text': 'Verarbeitet allgemeine Textinhalte',
+    'tutorial': 'Spezialisiert auf Anleitungen und Tutorials',
+    'document': 'Verwaltet Dokumente und Dokumentationen'
   }
-  return descriptionMap[type] || ''
+  return descriptionMap[type.toLowerCase()] || ''
 }
 
 function getHandlerIcon(type: string): string {
   const iconMap: Record<string, string> = {
-    'medical': 'stethoscope',
-    'insurance': 'shield',
-    'city-administration': 'building',
-    'shopping-center': 'shopping-cart',
-    'default': 'bot'
+    'default': 'file-text',
+    'service': 'briefcase',
+    'product': 'shopping-bag',
+    'article': 'book-open',
+    'faq': 'help-circle',
+    'contact': 'users',
+    'event': 'calendar',
+    'download': 'download',
+    'video': 'video',
+    'image': 'image',
+    'form': 'clipboard',
+    'profile': 'user',
+    'location': 'map-pin',
+    'text': 'file-text',
+    'tutorial': 'book',
+    'document': 'file'
   }
-  return iconMap[type] || 'bot'
+  return iconMap[type.toLowerCase()] || 'file-text'
 }
 
 function getHandlerCategory(type: string): string {
   const categoryMap: Record<string, string> = {
-    'medical': 'Gesundheit',
-    'insurance': 'Versicherung',
-    'city-administration': 'Verwaltung',
-    'shopping-center': 'Shopping',
-    'default': 'Allgemein'
+    'default': 'Allgemein',
+    'service': 'Services',
+    'product': 'Produkte',
+    'article': 'Inhalte',
+    'faq': 'Support',
+    'contact': 'Kontakte',
+    'event': 'Events',
+    'download': 'Downloads',
+    'video': 'Multimedia',
+    'image': 'Multimedia',
+    'form': 'Interaktion',
+    'profile': 'Profile',
+    'location': 'Standorte',
+    'text': 'Inhalte',
+    'tutorial': 'Support',
+    'document': 'Dokumente'
   }
-  return categoryMap[type] || 'Sonstige'
+  return categoryMap[type.toLowerCase()] || 'Sonstige'
 } 
